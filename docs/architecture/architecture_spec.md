@@ -11,12 +11,13 @@
 `cctv-helper`는 Flutter 기반 CCTV 시간 동기화 도우미 앱입니다.
 `malssi`와 동일한 feature-based 디렉토리 구조를 사용합니다.
 
-- **진입점 (초안)**: `lib/main.dart`의 `main()`이 로컬 저장소 복원 → `AppShell` 실행 순으로 시작합니다.
-- **앱 셸 (초안)**: `lib/app.dart`의 `AppShell`(`StatelessWidget`)이 `MultiProvider`로 감싼
+- **진입점 (1.0.0 확정)**: `lib/main.dart`의 `main()`이 `AppShell` 실행.
+- **앱 셸 (1.0.0 확정)**: `lib/app.dart`의 `AppShell`(`StatelessWidget`)이 `MultiProvider`
+  (`CasesProvider` + `SourcesProvider` + `EventsProvider`)로 감싼
   `MaterialApp.router`를 제공합니다.
-- **라우팅 (초안)**: `lib/routing/app_router.dart`의 `appRouter`(`GoRouter`, `initialLocation: '/'`).
-  후보 라우트: `/` (동기 타임라인), `/sources` (영상 원천), `/events` (사건 메모),
-  `/settings` (설정). 확정 전이므로 기능 명세 확정 시 개정합니다.
+- **라우팅 (1.0.0 확정)**: `lib/routing/app_router.dart`의 `appRouter`(`GoRouter`, `initialLocation: '/'`).
+  라우트: `/` (`CasesScreen`, 사건 목록), `/case/:id` (`CaseDetailScreen`, CCTV 관리).
+  `/sources`·`/events`·`/settings` 분리 라우트는 폐기 — CCTV·기록은 사건 상세 내 카드로 통합.
 - **상태 관리**: `provider` + `ChangeNotifier` + `context.watch`/`context.read` 단일 패턴
   (`malssi`와 동일. `riverpod` 도입 금지).
 - **데이터 계층 (초안)**: feature별 `*_repository.dart` 추상 클래스 + `InMemory*` 구현체.
@@ -58,10 +59,10 @@ lib/
   app.dart                 # AppShell (MultiProvider + MaterialApp.router)
   routing/app_router.dart  # GoRoute 등록 (신규 화면은 여기에 추가)
   core/
-    constants/             # 공용 상수
-    services/              # TimeCalcService, ExportService, LocalStore (초안)
-    theme/                 # AppTheme
-    widgets/               # 공용 위젯
+    constants/             # StoreKeys 등 공용 상수
+    services/              # TimeCalcService (오프셋→보정시각 계산)
+    theme/                 # AppTheme (미도입, 1.0.0 이후)
+    widgets/               # datetime_field 등 공용 위젯
   features/
     <feature>/
       data/                # Repository 추상/구현
@@ -71,7 +72,7 @@ lib/
 ```
 
 - 새 기능은 `features/<feature>/{data,domain,presentation,providers}` 4계층으로 추가합니다.
-  초안 feature명: `timeline`, `sources`, `events`, `settings`.
+  1.0.0 feature명: `cases`, `sources`, `events`.
 - 공용 코드는 `core/{constants,services,theme,widgets}`에 둡니다.
 - 라우트는 `lib/routing/app_router.dart`의 `GoRoute`에 등록합니다.
 
