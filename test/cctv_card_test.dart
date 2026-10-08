@@ -37,12 +37,11 @@ void main() {
     expect(find.text('−1초'), findsOneWidget);
     expect(find.text('+1초'), findsOneWidget);
 
-    // 상단 시간 직접 타이핑 입력 후 Enter(적용)
+    // 상단 시간 직접 타이핑 → Enter 없이 즉시 적용
     await tester.enterText(
       find.byType(TextField),
       '2026-10-08 14:00:00',
     );
-    await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
     final updated = sources.byCase(caseId).first;
     // 실제 시각 행(첫 번째 입력 버튼)에서 열었으므로 actualAt 갱신

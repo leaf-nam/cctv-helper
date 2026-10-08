@@ -39,14 +39,17 @@ Future<void> showTimeEditSheet(
     (label: '1초', duration: Duration(seconds: 1)),
   ];
 
+  DateTime? tryParseDirect(String text) {
+    return DateTime.tryParse(text.trim().replaceAll('/', '-'));
+  }
+
+  final directController = TextEditingController(
+    text: formatDateTime(initial),
+  );
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     builder: (sheetContext) {
-      final directController = TextEditingController(
-        text: formatDateTime(initial),
-      );
-      String? directError;
       return StatefulBuilder(
         builder: (context, setState) {
           // 스테퍼·지금·달력 변경 시 입력칸 표시도 함께 갱신
@@ -90,15 +93,17 @@ Future<void> showTimeEditSheet(
             ];
           }
 
+          // 타이핑 즉시 적용: 파싱 가능한 순간 바로 반영 (Enter 불필요).
+          // 중간 상태(미완성 문자열)는 무시하고 마지막 유효값 유지.
+          Future<void> applyLive(String text) async {
+            final parsed = tryParseDirect(text);
+            if (parsed == null || parsed == current) return;
+            await apply(setState, parsed);
+          }
+
           Future<void> applyDirect() async {
-            final parsed = DateTime.tryParse(
-              directController.text.trim().replaceAll('/', '-'),
-            );
-            if (parsed == null) {
-              setState(() => directError = '형식: 2026-10-08 22:30:00');
-              return;
-            }
-            setState(() => directError = null);
+            final parsed = tryParseDirect(directController.text);
+            if (parsed == null) return;
             await apply(setState, parsed);
           }
 
@@ -115,15 +120,15 @@ Future<void> showTimeEditSheet(
               children: [
                 Text(title, style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 8),
-                // 상단 시간 자체가 입력칸 (탭해 직접 타이핑, Enter로 적용)
+                // 상단 시간 자체가 입력칸 (타이핑 즉시 적용, Enter 불필요)
                 TextField(
                   controller: directController,
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.headlineSmall,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     border: InputBorder.none,
-                    errorText: directError,
                   ),
+                  onChanged: applyLive,
                   onSubmitted: (_) => applyDirect(),
                 ),
                 Text(
@@ -165,4 +170,11 @@ Future<void> showTimeEditSheet(
       );
     },
   );
+  // 모달이 닫히는 시점에 입력칸 최종값을 한 번 더 읽어 반영한다.
+  // (타이핑 중 저장 가드에 걸려 live-apply를 놓친 경우 커버)
+  final pending = tryParseDirect(directController.text);
+  directController.dispose();
+  if (pending != null && pending != current) {
+    await onChanged(pending);
+  }
 }
