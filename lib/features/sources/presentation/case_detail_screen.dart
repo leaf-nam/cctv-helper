@@ -82,6 +82,8 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
           : ReorderableListView.builder(
               // 하단 FAB(+버튼)와 마지막 카드 삭제 버튼이 겹치지 않게 여백
               padding: const EdgeInsets.only(bottom: 96),
+              // 기본 우측 핸들 대신 카드 맨 위 핸들 사용
+              buildDefaultDragHandles: false,
               itemCount: sources.length,
               onReorderItem: (oldIndex, newIndex) => context
                   .read<SourcesProvider>()
@@ -92,6 +94,7 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
                   key: ValueKey(source.id),
                   caseId: widget.caseId,
                   source: source,
+                  index: index,
                   onRename: (id, name) => context
                       .read<SourcesProvider>()
                       .renameSource(id, name),

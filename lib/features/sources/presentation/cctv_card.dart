@@ -83,6 +83,9 @@ class _InlineTimeTextState extends State<_InlineTimeText> {
 class CctvCard extends StatefulWidget {
   final String caseId;
   final CctvSource source;
+
+  /// 목록 내 위치 (드래그 핸들용).
+  final int index;
   final Future<void> Function(String id, String name) onRename;
   final Future<void> Function(String id) onRemove;
   final Future<void> Function(
@@ -96,6 +99,7 @@ class CctvCard extends StatefulWidget {
     super.key,
     required this.caseId,
     required this.source,
+    required this.index,
     required this.onRename,
     required this.onRemove,
     required this.onUpdateTimes,
@@ -334,6 +338,16 @@ class _CctvCardState extends State<CctvCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // 카드 맨 위 드래그 핸들 (순서 조정용)
+            Center(
+              child: ReorderableDragStartListener(
+                index: widget.index,
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 2),
+                  child: Icon(Icons.drag_handle, size: 20),
+                ),
+              ),
+            ),
             Row(
               children: [
                 Expanded(
