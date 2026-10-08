@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'datetime_field.dart';
 
 /// 시각 편집 바텀시트.
 ///
-/// [지금] 버튼, 가로 2행 ±스테퍼(1일/1시간/10분/1분/10초/1초),
-/// 날짜 직접 타이핑 입력을 제공한다.
+/// [지금] 버튼, 가로 2행 ±스테퍼(1일/1시간/1분/1초…),
+/// 단위별 분할 직접 입력(년·월·일·시·분·초, 범위 검증)을 제공한다.
 /// 모든 변경은 즉시 `onChanged`로 반영된다 (live-apply).
 Future<void> showTimeEditSheet(
   BuildContext context, {
@@ -39,16 +40,51 @@ Future<void> showTimeEditSheet(
     (label: '1초', duration: Duration(seconds: 1)),
   ];
 
-  DateTime? tryParseDirect(String text) {
-    return DateTime.tryParse(text.trim().replaceAll('/', '-'));
+  // 단위별 컨트롤러: 0=년 1=월 2=일 3=시 4=분 5=초
+  final parts = List.generate(6, (_) => TextEditingController());
+
+  void syncParts(DateTime value) {
+    final values = [
+      value.year,
+      value.month,
+      value.day,
+      value.hour,
+      value.minute,
+      value.second,
+    ];
+    for (var i = 0; i < 6; i++) {
+      parts[i].text = values[i].toString().padLeft(i == 0 ? 4 : 2, '0');
+    }
   }
 
-  final directController = TextEditingController(
-    text: formatDateTime(initial),
-  );
-  // 시트가 닫히는 시점에 최종 입력값을 읽기 위한 스냅샷.
-  // (컨트롤러 자체는 시트 위젯이 들고 있어 pop 후에 건드리면 안 됨)
-  var lastDirectText = directController.text;
+  syncParts(initial);
+
+  /// 6칸 조합. 범위 밖(월 13·분 70 등)이나 존재하지 않는 날짜(2월 30일)는
+  /// null → 적용하지 않고 마지막 유효값 유지.
+  DateTime? composeParts() {
+    final numbers = parts.map((c) => int.tryParse(c.text)).toList();
+    if (numbers.any((e) => e == null)) return null;
+    final y = numbers[0]!;
+    final mo = numbers[1]!;
+    final d = numbers[2]!;
+    final h = numbers[3]!;
+    final mi = numbers[4]!;
+    final s = numbers[5]!;
+    if (mo < 1 || mo > 12) return null;
+    if (d < 1 || d > 31) return null;
+    if (h < 0 || h > 23) return null;
+    if (mi < 0 || mi > 59) return null;
+    if (s < 0 || s > 59) return null;
+    final composed = DateTime(y, mo, d, h, mi, s);
+    // 월말 넘김(2월 30일 → 3월 2일) rollover 방지
+    if (composed.year != y || composed.month != mo || composed.day != d) {
+      return null;
+    }
+    return composed;
+  }
+
+  var lastComposed = composeParts();
+
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -61,7 +97,16 @@ Future<void> showTimeEditSheet(
             DateTime value,
           ) async {
             await apply(setState, value);
-            directController.text = formatDateTime(value);
+            syncParts(value);
+            lastComposed = value;
+          }
+
+          // 분할 입력 즉시 적용: 6칸이 모두 유효한 순간 바로 반영.
+          Future<void> applyLive() async {
+            final composed = composeParts();
+            if (composed == null || composed == current) return;
+            lastComposed = composed;
+            await apply(setState, composed);
           }
 
           Widget stepButton(String text, Duration delta) {
@@ -96,18 +141,37 @@ Future<void> showTimeEditSheet(
             ];
           }
 
-          // 타이핑 즉시 적용: 파싱 가능한 순간 바로 반영 (Enter 불필요).
-          // 중간 상태(미완성 문자열)는 무시하고 마지막 유효값 유지.
-          Future<void> applyLive(String text) async {
-            final parsed = tryParseDirect(text);
-            if (parsed == null || parsed == current) return;
-            await apply(setState, parsed);
-          }
-
-          Future<void> applyDirect() async {
-            final parsed = tryParseDirect(directController.text);
-            if (parsed == null) return;
-            await apply(setState, parsed);
+          Widget numField(int index, String suffix, {int flex = 2}) {
+            return Expanded(
+              flex: flex,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      key: ValueKey('time-part-$index'),
+                      controller: parts[index],
+                      textAlign: TextAlign.center,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(
+                          index == 0 ? 4 : 2,
+                        ),
+                      ],
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(vertical: 10),
+                      ),
+                      onChanged: (_) => applyLive(),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    child: Text(suffix),
+                  ),
+                ],
+              ),
+            );
           }
 
           return Padding(
@@ -123,22 +187,28 @@ Future<void> showTimeEditSheet(
               children: [
                 Text(title, style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 8),
-                // 상단 시간 자체가 입력칸 (타이핑 즉시 적용, Enter 불필요)
-                TextField(
-                  controller: directController,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.headlineSmall,
-                  decoration: const InputDecoration(
-                    border: InputBorder.none,
-                  ),
-                  onChanged: (text) {
-                    lastDirectText = text;
-                    applyLive(text);
-                  },
-                  onSubmitted: (_) => applyDirect(),
+                // 단위별 분할 입력 (범위 밖 값은 적용되지 않음)
+                Row(
+                  children: [
+                    numField(0, '년', flex: 3),
+                    const SizedBox(width: 4),
+                    numField(1, '월'),
+                    const SizedBox(width: 4),
+                    numField(2, '일'),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    numField(3, '시'),
+                    const SizedBox(width: 4),
+                    numField(4, '분'),
+                    const SizedBox(width: 4),
+                    numField(5, '초'),
+                  ],
                 ),
                 Text(
-                  '직접 입력 가능 (예: 2026-10-08 22:30:00)',
+                  '각 단위별로 입력 (월 1-12·시 0-23·분/초 0-59)',
                   style: Theme.of(context).textTheme.bodySmall,
                   textAlign: TextAlign.center,
                 ),
@@ -178,8 +248,10 @@ Future<void> showTimeEditSheet(
   );
   // 모달이 닫히는 시점에 입력칸 최종값을 한 번 더 읽어 반영한다.
   // (타이핑 중 저장 가드에 걸려 live-apply를 놓친 경우 커버)
-  final pending = tryParseDirect(lastDirectText);
-  if (pending != null && pending != current) {
+  // controllers는 pop 애니메이션 중에도 시트가 참조하므로 여기서 dispose하지
+  // 않는다 (리스너가 없어 GC 대상이 됨).
+  final pending = composeParts();
+  if (pending != null && pending != lastComposed) {
     await onChanged(pending);
   }
 }

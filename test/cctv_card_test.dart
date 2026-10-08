@@ -34,16 +34,16 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // 시간 확인칸에 CCTV 시각 입력 후 시트 닫기
+    // 시간 확인칸에 CCTV 시각 입력 후 시트 닫기 (분할 입력)
     await tester.tap(find.widgetWithText(TextButton, 'CCTV 시각 입력'));
     await tester.pumpAndSettle();
-    final checkerField = find.descendant(
-      of: find.byType(BottomSheet),
-      matching: find.byType(TextField),
-    );
-    expect(checkerField, findsOneWidget);
-    await tester.enterText(checkerField, '2026-10-08 15:00:00');
-    await tester.pumpAndSettle();
+    final parts = ['2026', '10', '08', '15', '00', '00'];
+    for (var i = 0; i < 6; i++) {
+      final field = find.byKey(ValueKey('time-part-$i'));
+      expect(field, findsOneWidget);
+      await tester.enterText(field, parts[i]);
+      await tester.pumpAndSettle();
+    }
     await tester.tap(find.widgetWithText(TextButton, '닫기'));
     await tester.pumpAndSettle();
     // 확인 결과가 기준처럼 위아래 2행으로 분리 표시
@@ -90,17 +90,31 @@ void main() {
     expect(find.text('−1초'), findsOneWidget);
     expect(find.text('+1초'), findsOneWidget);
 
-    // 상단 시간 직접 타이핑 → Enter 없이 즉시 적용 (시트 안 입력칸)
-    final sheetField = find.descendant(
-      of: find.byType(BottomSheet),
-      matching: find.byType(TextField),
+    // 단위별 분할 입력 → Enter 없이 즉시 적용 (실제 시각 행에서 열었으므로 actualAt)
+    Future<void> fillPart(int index, String text) async {
+      final field = find.byKey(ValueKey('time-part-$index'));
+      expect(field, findsOneWidget);
+      await tester.enterText(field, text);
+      await tester.pumpAndSettle();
+    }
+
+    await fillPart(0, '2026');
+    await fillPart(1, '10');
+    await fillPart(2, '08');
+    await fillPart(3, '14');
+    await fillPart(4, '00');
+    await fillPart(5, '00');
+    expect(
+      sources.byCase(caseId).first.actualAt,
+      DateTime(2026, 10, 8, 14, 0, 0),
     );
-    expect(sheetField, findsOneWidget);
-    await tester.enterText(sheetField, '2026-10-08 14:00:00');
-    await tester.pumpAndSettle();
-    final updated = sources.byCase(caseId).first;
-    // 실제 시각 행(첫 번째 입력 버튼)에서 열었으므로 actualAt 갱신
-    expect(updated.actualAt, DateTime(2026, 10, 8, 14, 0, 0));
+
+    // 범위 밖 값(분 70)은 적용되지 않고 마지막 유효값 유지
+    await fillPart(4, '70');
+    expect(
+      sources.byCase(caseId).first.actualAt,
+      DateTime(2026, 10, 8, 14, 0, 0),
+    );
   });
   testWidgets('시각 행 분리 및 지금 버튼 표시', (tester) async {
     final cases = CasesProvider();

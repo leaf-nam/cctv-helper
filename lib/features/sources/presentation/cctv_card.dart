@@ -236,10 +236,12 @@ class _CctvCardState extends State<CctvCard> {
   }
 
   /// 시각 편집 시트 열기. `displayed`가 false면 실제 시각.
+  /// 시트를 열기 전 포커스를 풀어 행 입력칸 표시가 외부 변경에 동기화되게 한다.
   Future<void> _editTime(
     BuildContext context, {
     required bool displayed,
   }) async {
+    FocusManager.instance.primaryFocus?.unfocus();
     await showTimeEditSheet(
       context,
       title: displayed ? 'CCTV 시각 입력' : '실제 시각 입력',
@@ -255,11 +257,12 @@ class _CctvCardState extends State<CctvCard> {
     );
   }
 
-  /// [지금] 즉시 반영.
+  /// [지금] 즉시 반영. 포커스를 먼저 풀어 행 입력칸 표시를 동기화한다.
   Future<void> _setNow(
     BuildContext context, {
     required bool displayed,
   }) async {
+    FocusManager.instance.primaryFocus?.unfocus();
     final now = DateTime.now();
     if (displayed) {
       await widget.onUpdateTimes(_source.id, displayedAt: () => now);
