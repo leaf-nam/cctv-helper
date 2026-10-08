@@ -4,8 +4,8 @@ import 'datetime_field.dart';
 
 /// 시각 편집 바텀시트.
 ///
-/// 달력→시계 2단계 피커만으로는 맞추기 힘들어
-/// [지금] 버튼과 2열 ±스테퍼 테이블(1일/1시간/10분/1분/10초/1초)을 제공한다.
+/// [지금] 버튼, 가로 2행 ±스테퍼(1일/1시간/10분/1분/10초/1초),
+/// 날짜 직접 타이핑 입력을 제공한다.
 /// 모든 변경은 즉시 `onChanged`로 반영된다 (live-apply).
 Future<void> showTimeEditSheet(
   BuildContext context, {
@@ -43,16 +43,54 @@ Future<void> showTimeEditSheet(
     context: context,
     isScrollControlled: true,
     builder: (sheetContext) {
+      final directController = TextEditingController(
+        text: formatDateTime(initial),
+      );
+      String? directError;
       return StatefulBuilder(
         builder: (context, setState) {
-          Widget stepCell(String text, Duration delta) {
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-              child: OutlinedButton(
-                onPressed: () => apply(setState, current.add(delta)),
-                child: Text(text, style: const TextStyle(fontSize: 16)),
+          Widget stepButton(String text, Duration delta) {
+            return Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2),
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 2,
+                      vertical: 12,
+                    ),
+                  ),
+                  onPressed: () => apply(setState, current.add(delta)),
+                  child: Text(text, style: const TextStyle(fontSize: 13)),
+                ),
               ),
             );
+          }
+
+          List<Widget> stepRow(bool minus) {
+            return [
+              for (final unit in units)
+                stepButton(
+                  '${minus ? '−' : '+'}${unit.label}',
+                  minus
+                      ? Duration(
+                          microseconds: -unit.duration.inMicroseconds,
+                        )
+                      : unit.duration,
+                ),
+            ];
+          }
+
+          Future<void> applyDirect() async {
+            final parsed = DateTime.tryParse(
+              directController.text.trim().replaceAll('/', '-'),
+            );
+            if (parsed == null) {
+              setState(() => directError = '형식: 2026-10-08 22:30:00');
+              return;
+            }
+            setState(() => directError = null);
+            await apply(setState, parsed);
           }
 
           return Padding(
@@ -80,27 +118,32 @@ Future<void> showTimeEditSheet(
                   onPressed: () => apply(setState, DateTime.now()),
                 ),
                 const SizedBox(height: 8),
-                Table(
-                  columnWidths: const {
-                    0: FlexColumnWidth(),
-                    1: FlexColumnWidth(),
-                  },
+                // 가로 2행 스테퍼: 윗행 −, 아랫행 +
+                Row(children: stepRow(true)),
+                const SizedBox(height: 4),
+                Row(children: stepRow(false)),
+                const SizedBox(height: 8),
+                // 날짜 직접 타이핑 입력
+                Row(
                   children: [
-                    for (final unit in units)
-                      TableRow(
-                        children: [
-                          stepCell(
-                            '− ${unit.label}',
-                            Duration(
-                              microseconds: -unit.duration.inMicroseconds,
-                            ),
-                          ),
-                          stepCell('+ ${unit.label}', unit.duration),
-                        ],
+                    Expanded(
+                      child: TextField(
+                        controller: directController,
+                        decoration: InputDecoration(
+                          labelText: '직접 입력 (예: 2026-10-08 22:30:00)',
+                          errorText: directError,
+                        ),
+                        onSubmitted: (_) => applyDirect(),
                       ),
+                    ),
+                    const SizedBox(width: 8),
+                    FilledButton.tonal(
+                      onPressed: applyDirect,
+                      child: const Text('적용'),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
                 OutlinedButton.icon(
                   icon: const Icon(Icons.calendar_month),
                   label: const Text('날짜·시간 직접 선택'),
@@ -108,6 +151,7 @@ Future<void> showTimeEditSheet(
                     final picked = await pickDateTime(context, current);
                     if (picked == null) return;
                     if (!context.mounted) return;
+                    directController.text = formatDateTime(picked);
                     await apply(setState, picked);
                   },
                 ),
