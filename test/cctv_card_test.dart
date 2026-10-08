@@ -135,8 +135,7 @@ void main() {
     // 행별 입력/지금 버튼
     expect(find.widgetWithText(TextButton, '입력'), findsNWidgets(2));
     expect(find.widgetWithText(TextButton, '지금'), findsNWidgets(2));
-    // 추가 시 실제 시각만 초기화 → 하단 기능 숨김 + 안내 문구
-    expect(find.textContaining('펼쳐집니다'), findsOneWidget);
+    // 추가 시 실제 시각만 초기화 → 하단 기능 숨김
     expect(find.text('시간 확인'), findsNothing);
     expect(find.widgetWithText(FilledButton, '기록 추가'), findsNothing);
 
@@ -149,7 +148,6 @@ void main() {
     );
     await tester.pumpAndSettle();
     await tester.pump(const Duration(milliseconds: 400));
-    expect(find.textContaining('펼쳐집니다'), findsNothing);
     expect(find.textContaining('CCTV가 2분 0초 느림'), findsOneWidget);
     // 기준 확정 후 시간 확인칸 표시
     expect(find.text('시간 확인'), findsOneWidget);
@@ -184,6 +182,6 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     final updated = sources.byCase(caseId).first;
     expect(updated.displayedAt, DateTime(2026, 10, 8, 14, 0, 0));
-    expect(find.textContaining('펼쳐집니다'), findsNothing);
+    expect(find.text('시간 확인'), findsOneWidget);
   });
 }

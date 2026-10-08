@@ -423,11 +423,6 @@ class _CctvCardState extends State<CctvCard> {
                         _timeChecker(),
                         const Divider(),
                         // 시간 확인 바로 밑 기록 추가 (확인된 시각으로 바로 기록)
-                        Text(
-                          '이 시각으로 기록: ${formatDateTime(recordTime)}',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                        const SizedBox(height: 4),
                         SizedBox(
                           width: double.infinity,
                           child: FilledButton.icon(
@@ -520,11 +515,6 @@ class _CctvCardState extends State<CctvCard> {
                     )
                   : const SizedBox(width: double.infinity, height: 0),
             ),
-            if (!ready)
-              Text(
-                'CCTV·실제 시각을 모두 입력하면 오차·확인·기록 기능이 펼쳐집니다.',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
           ],
         ),
       ),
