@@ -422,48 +422,7 @@ class _CctvCardState extends State<CctvCard> {
                       children: [
                         _timeChecker(),
                         const Divider(),
-                        Text(
-                          '기록 ${events.length}건',
-                          style: Theme.of(context).textTheme.titleSmall,
-                        ),
-                        const SizedBox(height: 4),
-                        if (events.isEmpty)
-                          const Text('아직 기록이 없습니다.')
-                        else
-                          ...events.map(
-                            (e) => ListTile(
-                              dense: true,
-                              contentPadding: EdgeInsets.zero,
-                              leading: e.photoPath.isEmpty
-                                  ? null
-                                  : ClipRRect(
-                                      borderRadius: BorderRadius.circular(6),
-                                      child: Image.file(
-                                        File(e.photoPath),
-                                        width: 48,
-                                        height: 48,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (context, _, __) =>
-                                            const Icon(Icons.broken_image),
-                                      ),
-                                    ),
-                              title: Text(
-                                e.memo.isEmpty ? '(메모 없음)' : e.memo,
-                              ),
-                              subtitle: Text(
-                                '보정 ${formatDateTime(e.correctedAt)} '
-                                '(영상 ${formatDateTime(e.displayedAt)})',
-                              ),
-                              trailing: IconButton(
-                                icon: const Icon(Icons.delete_outline),
-                                onPressed: () => context
-                                    .read<EventsProvider>()
-                                    .removeEvent(e.id),
-                              ),
-                            ),
-                          ),
-                        const SizedBox(height: 8),
-                        // 목록 아래 기록 추가: 이 시각으로 바로 기록됨을 직관적으로 표시
+                        // 시간 확인 바로 밑 기록 추가 (확인된 시각으로 바로 기록)
                         Text(
                           '이 시각으로 기록: ${formatDateTime(recordTime)}',
                           style: Theme.of(context).textTheme.bodySmall,
@@ -480,6 +439,81 @@ class _CctvCardState extends State<CctvCard> {
                               _source,
                               initialDisplayed: recordTime,
                             ),
+                          ),
+                        ),
+                        const Divider(),
+                        // 기록 로그: 분리된 박스에 시간순 보관
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerHighest,
+                            border: Border.all(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .outlineVariant,
+                            ),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.list_alt, size: 14),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '기록 ${events.length}건',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelSmall,
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              if (events.isEmpty)
+                                const Text('아직 기록이 없습니다.')
+                              else
+                                ...events.map(
+                                  (e) => ListTile(
+                                    dense: true,
+                                    contentPadding: EdgeInsets.zero,
+                                    leading: e.photoPath.isEmpty
+                                        ? null
+                                        : ClipRRect(
+                                            borderRadius:
+                                                BorderRadius.circular(6),
+                                            child: Image.file(
+                                              File(e.photoPath),
+                                              width: 48,
+                                              height: 48,
+                                              fit: BoxFit.cover,
+                                              errorBuilder:
+                                                  (context, _, __) =>
+                                                      const Icon(
+                                                Icons.broken_image,
+                                              ),
+                                            ),
+                                          ),
+                                    title: Text(
+                                      e.memo.isEmpty ? '(메모 없음)' : e.memo,
+                                    ),
+                                    subtitle: Text(
+                                      '보정 ${formatDateTime(e.correctedAt)} '
+                                      '(영상 ${formatDateTime(e.displayedAt)})',
+                                    ),
+                                    trailing: IconButton(
+                                      icon: const Icon(
+                                          Icons.delete_outline),
+                                      onPressed: () => context
+                                          .read<EventsProvider>()
+                                          .removeEvent(e.id),
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
                       ],
