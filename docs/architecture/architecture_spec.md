@@ -84,6 +84,7 @@ lib/
 | `provider` | `^6.0.0` | 상태 관리 (주) | `AppShell` MultiProvider, 화면 watch/read |
 | `go_router` | `^13.2.0` | 라우팅 | `appRouter` |
 | `shared_preferences` | `^2.5.5` | 로컬 지속화 | `LocalStore` 후보 |
+| `image_picker` | `^1.2.4` | 사진 촬영·앨범 선택 | 기록 시트 첨부 (#3) |
 | `csv` | 미확정 | 내보내기 | 도입 여부 이슈로 분리 |
 | `share_plus` | 미확정 | 내보내기 공유 | 도입 여부 이슈로 분리 |
 | `flutter_test` (`dev`) | SDK | 테스트 | `flutter test` |

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -288,13 +290,25 @@ class CctvCard extends StatelessWidget {
                             (e) => ListTile(
                               dense: true,
                               contentPadding: EdgeInsets.zero,
+                              leading: e.photoPath.isEmpty
+                                  ? null
+                                  : ClipRRect(
+                                      borderRadius: BorderRadius.circular(6),
+                                      child: Image.file(
+                                        File(e.photoPath),
+                                        width: 48,
+                                        height: 48,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, _, __) =>
+                                            const Icon(Icons.broken_image),
+                                      ),
+                                    ),
                               title: Text(
                                 e.memo.isEmpty ? '(메모 없음)' : e.memo,
                               ),
                               subtitle: Text(
                                 '보정 ${formatDateTime(e.correctedAt)} '
-                                '(영상 ${formatDateTime(e.displayedAt)})'
-                                '${e.photoPath.isEmpty ? '' : '\n사진: ${e.photoPath}'}',
+                                '(영상 ${formatDateTime(e.displayedAt)})',
                               ),
                               trailing: IconButton(
                                 icon: const Icon(Icons.delete_outline),

@@ -33,10 +33,10 @@
   보정시각은 생성 시 오프셋으로 자동 확정한다.
 - **구현 상태**: 구현됨.
 - **관련 코드**:
-  - 모델: `TimelineEvent` (`model_spec.md` §4.3 참조).
+  - 모델: `TimelineEvent` (`model_spec.md` §4.3 참조, `photoPath`에 촬영/선택 사진 저장).
   - 저장소: `TimelineEventRepository` (사건별 보정시각 정렬).
-  - 화면: `showEventSheet()` (`lib/features/sources/presentation/event_sheet.dart`).
-- **향후 과제**: 사진 촬영·첨부 (`image_picker` 도입 검토).
+  - 화면: `showEventSheet()` (카메라 촬영·앨범 선택 + 썸네일 미리보기, `image_picker`).
+- **향후 과제**: 사진 원본 보관 위치·동기화 정책.
 
 ## 4. 사건별 CCTV 관리 (#4, 1.0.0 구현됨)
 
