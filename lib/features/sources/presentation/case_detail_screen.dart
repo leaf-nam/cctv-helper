@@ -80,6 +80,8 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
       body: sources.isEmpty
           ? const Center(child: Text('CCTV를 추가하세요.'))
           : ReorderableListView.builder(
+              // 하단 FAB(+버튼)와 마지막 카드 삭제 버튼이 겹치지 않게 여백
+              padding: const EdgeInsets.only(bottom: 96),
               itemCount: sources.length,
               onReorderItem: (oldIndex, newIndex) => context
                   .read<SourcesProvider>()
