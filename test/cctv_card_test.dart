@@ -8,6 +8,49 @@ import 'package:provider/provider.dart';
 
 /// 새 시간 입력 UI 검증: 실제 행이 위·CCTV 행이 아래, 행별 입력/지금 버튼.
 void main() {
+  testWidgets('확인 시간이 기록 시각으로 이어쓰기', (tester) async {
+    final cases = CasesProvider();
+    final sources = SourcesProvider();
+    final events = EventsProvider();
+    await cases.addCase('사건1');
+    final caseId = cases.cases.first.id;
+    await sources.addSource(caseId, '입구');
+    final source = sources.byCase(caseId).first;
+    await sources.updateTimes(
+      source.id,
+      displayedAt: () => DateTime(2026, 10, 8, 14, 0, 0),
+      actualAt: () => DateTime(2026, 10, 8, 14, 2, 0),
+    );
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider.value(value: cases),
+          ChangeNotifierProvider.value(value: sources),
+          ChangeNotifierProvider.value(value: events),
+        ],
+        child: MaterialApp(home: CaseDetailScreen(caseId: caseId)),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // 시간 확인칸에 CCTV 시간 입력 후 시트 닫기
+    await tester.tap(find.widgetWithText(TextButton, 'CCTV 시간 입력'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '2026-10-08 15:00:00');
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, '닫기'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('실제 2026-10-08 15:02:00'), findsOneWidget);
+
+    // 기록 추가 시 확인된 시간이 초기값으로 들어감
+    await tester.tap(find.widgetWithText(TextButton, '기록 추가'));
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining('영상 시각: 2026-10-08 15:00:00'),
+      findsOneWidget,
+    );
+  });
   testWidgets('편집 시트: 가로 스테퍼 + 직접 입력', (tester) async {
     final cases = CasesProvider();
     final sources = SourcesProvider();

@@ -11,14 +11,18 @@ import '../../sources/domain/cctv_source.dart';
 
 /// 기록(메모·사진) 입력 시트 (#3).
 /// 사진은 경로 타이핑이 아니라 카메라 촬영·앨범 선택으로 첨부한다.
+/// [initialDisplayed]가 있으면 영상 시각 초기값으로 사용한다
+/// (시간 확인칸의 조회 시간 이어쓰기).
 Future<void> showEventSheet(
   BuildContext context,
   String caseId,
-  CctvSource source,
-) async {
+  CctvSource source, {
+  DateTime? initialDisplayed,
+}) async {
   final memoController = TextEditingController();
   final picker = ImagePicker();
-  DateTime displayed = source.displayedAt ?? DateTime.now();
+  DateTime displayed =
+      initialDisplayed ?? source.displayedAt ?? DateTime.now();
   String photoPath = '';
   await showModalBottomSheet<void>(
     context: context,

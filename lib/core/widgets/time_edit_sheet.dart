@@ -46,6 +46,9 @@ Future<void> showTimeEditSheet(
   final directController = TextEditingController(
     text: formatDateTime(initial),
   );
+  // 시트가 닫히는 시점에 최종 입력값을 읽기 위한 스냅샷.
+  // (컨트롤러 자체는 시트 위젯이 들고 있어 pop 후에 건드리면 안 됨)
+  var lastDirectText = directController.text;
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -128,7 +131,10 @@ Future<void> showTimeEditSheet(
                   decoration: const InputDecoration(
                     border: InputBorder.none,
                   ),
-                  onChanged: applyLive,
+                  onChanged: (text) {
+                    lastDirectText = text;
+                    applyLive(text);
+                  },
                   onSubmitted: (_) => applyDirect(),
                 ),
                 Text(
@@ -172,8 +178,7 @@ Future<void> showTimeEditSheet(
   );
   // 모달이 닫히는 시점에 입력칸 최종값을 한 번 더 읽어 반영한다.
   // (타이핑 중 저장 가드에 걸려 live-apply를 놓친 경우 커버)
-  final pending = tryParseDirect(directController.text);
-  directController.dispose();
+  final pending = tryParseDirect(lastDirectText);
   if (pending != null && pending != current) {
     await onChanged(pending);
   }

@@ -10,68 +10,11 @@ import '../../events/providers/events_provider.dart';
 import '../../sources/domain/cctv_source.dart';
 import 'event_sheet.dart';
 
-/// CCTV→실제 시간 확인칸.
-///
-/// 위 기준 시각 2개로 확정된 오프셋으로, 임의의 CCTV 시간이
-/// 실제 몇 시인지 확인한다. 기준 미확정 시 안내만 표시.
-class _TimeChecker extends StatefulWidget {
-  final CctvSource source;
-
-  const _TimeChecker({required this.source});
-
-  @override
-  State<_TimeChecker> createState() => _TimeCheckerState();
-}
-
-class _TimeCheckerState extends State<_TimeChecker> {
-  DateTime? _query;
-
-  @override
-  Widget build(BuildContext context) {
-    if (widget.source.offsetMillis == null) {
-      return Text(
-        '기준 시각 2개를 입력하면 시간 확인이 가능합니다.',
-        style: Theme.of(context).textTheme.bodySmall,
-      );
-    }
-    final corrected =
-        _query == null ? null : widget.source.correct(_query!);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Icon(Icons.search, size: 18),
-            const SizedBox(width: 4),
-            Text('시간 확인', style: Theme.of(context).textTheme.titleSmall),
-            const Spacer(),
-            TextButton.icon(
-              icon: const Icon(Icons.edit_calendar),
-              label: const Text('CCTV 시간 입력'),
-              onPressed: () => showTimeEditSheet(
-                context,
-                title: '확인할 CCTV 시간',
-                initial: _query ??
-                    widget.source.displayedAt ??
-                    DateTime.now(),
-                onChanged: (v) async => setState(() => _query = v),
-              ),
-            ),
-          ],
-        ),
-        Text(
-          _query == null
-              ? 'CCTV 시간을 입력하세요.'
-              : 'CCTV ${formatDateTime(_query)} → 실제 ${formatDateTime(corrected)}',
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
-      ],
-    );
-  }
-}
-
 /// CCTV 카드 1개: 시간 입력(#1)·오차 표시(#2)·이벤트 목록(#3).
-class CctvCard extends StatelessWidget {
+///
+/// 시간 확인칸의 조회 시각(`_checkedTime`)을 상태로 들고 있어
+/// 기록 추가 시 확인된 시간을 그대로 이어쓴다.
+class CctvCard extends StatefulWidget {
   final String caseId;
   final CctvSource source;
   final Future<void> Function(String id, String name) onRename;
@@ -92,8 +35,61 @@ class CctvCard extends StatelessWidget {
     required this.onUpdateTimes,
   });
 
+  @override
+  State<CctvCard> createState() => _CctvCardState();
+}
+
+class _CctvCardState extends State<CctvCard> {
+  /// 시간 확인칸에서 마지막으로 조회한 CCTV 시간. 기록 추가 시 초기값으로 사용.
+  DateTime? _checkedTime;
+
+  CctvSource get _source => widget.source;
+
+  /// 시간 확인칸. 기준 확정 전에는 안내만 표시.
+  Widget _timeChecker() {
+    if (_source.offsetMillis == null) {
+      return Text(
+        '기준 시각 2개를 입력하면 시간 확인이 가능합니다.',
+        style: Theme.of(context).textTheme.bodySmall,
+      );
+    }
+    final corrected =
+        _checkedTime == null ? null : _source.correct(_checkedTime!);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.search, size: 18),
+            const SizedBox(width: 4),
+            Text('시간 확인', style: Theme.of(context).textTheme.titleSmall),
+            const Spacer(),
+            TextButton.icon(
+              icon: const Icon(Icons.edit_calendar),
+              label: const Text('CCTV 시간 입력'),
+              onPressed: () => showTimeEditSheet(
+                context,
+                title: '확인할 CCTV 시간',
+                initial: _checkedTime ??
+                    _source.displayedAt ??
+                    DateTime.now(),
+                onChanged: (v) async => setState(() => _checkedTime = v),
+              ),
+            ),
+          ],
+        ),
+        Text(
+          _checkedTime == null
+              ? 'CCTV 시간을 입력하세요.'
+              : 'CCTV ${formatDateTime(_checkedTime)} → 실제 ${formatDateTime(corrected)}',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+      ],
+    );
+  }
+
   Future<void> _rename(BuildContext context) async {
-    final controller = TextEditingController(text: source.name);
+    final controller = TextEditingController(text: _source.name);
     final name = await showDialog<String>(
       context: context,
       builder: (context) {
@@ -121,7 +117,7 @@ class CctvCard extends StatelessWidget {
     );
     if (name == null || name.trim().isEmpty) return;
     if (!context.mounted) return;
-    await onRename(source.id, name);
+    await widget.onRename(_source.id, name);
   }
 
   /// 시각 편집 시트 열기. `displayed`가 false면 실제 시각.
@@ -132,13 +128,13 @@ class CctvCard extends StatelessWidget {
     await showTimeEditSheet(
       context,
       title: displayed ? 'CCTV 시각 입력' : '실제 시각 입력',
-      initial: (displayed ? source.displayedAt : source.actualAt) ??
+      initial: (displayed ? _source.displayedAt : _source.actualAt) ??
           DateTime.now(),
       onChanged: (value) async {
         if (displayed) {
-          await onUpdateTimes(source.id, displayedAt: () => value);
+          await widget.onUpdateTimes(_source.id, displayedAt: () => value);
         } else {
-          await onUpdateTimes(source.id, actualAt: () => value);
+          await widget.onUpdateTimes(_source.id, actualAt: () => value);
         }
       },
     );
@@ -151,9 +147,9 @@ class CctvCard extends StatelessWidget {
   }) async {
     final now = DateTime.now();
     if (displayed) {
-      await onUpdateTimes(source.id, displayedAt: () => now);
+      await widget.onUpdateTimes(_source.id, displayedAt: () => now);
     } else {
-      await onUpdateTimes(source.id, actualAt: () => now);
+      await widget.onUpdateTimes(_source.id, actualAt: () => now);
     }
   }
 
@@ -199,12 +195,14 @@ class CctvCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final offset = source.offsetMillis;
+    final offset = _source.offsetMillis;
     // 기준 시각 2개가 모두 입력돼 오프셋이 확정될 때만 하단 기능 공개.
     final ready = offset != null;
+    // 기록 추가 시 쓸 시각: 시간 확인칸의 조회 시간 우선, 없으면 기준 CCTV 시각.
+    final recordTime = _checkedTime ?? _source.displayedAt ?? DateTime.now();
     final events = context
         .watch<EventsProvider>()
-        .bySource(source.id);
+        .bySource(_source.id);
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       child: Padding(
@@ -216,7 +214,7 @@ class CctvCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    source.name,
+                    _source.name,
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
@@ -228,7 +226,7 @@ class CctvCard extends StatelessWidget {
                 IconButton(
                   icon: const Icon(Icons.delete),
                   tooltip: '삭제',
-                  onPressed: () => onRemove(source.id),
+                  onPressed: () => widget.onRemove(_source.id),
                 ),
               ],
             ),
@@ -237,7 +235,7 @@ class CctvCard extends StatelessWidget {
               context,
               label: '실제 시각',
               icon: Icons.access_time,
-              value: source.actualAt,
+              value: _source.actualAt,
               displayed: false,
             ),
             const Divider(),
@@ -245,7 +243,7 @@ class CctvCard extends StatelessWidget {
               context,
               label: 'CCTV 시각',
               icon: Icons.videocam,
-              value: source.displayedAt,
+              value: _source.displayedAt,
               displayed: true,
             ),
             const Divider(),
@@ -263,22 +261,36 @@ class CctvCard extends StatelessWidget {
                           style: Theme.of(context).textTheme.bodyMedium,
                         ),
                         const Divider(),
-                        _TimeChecker(source: source),
+                        _timeChecker(),
                         const Divider(),
                         Row(
                           children: [
-                            Text(
-                              '기록 ${events.length}건',
-                              style: Theme.of(context).textTheme.titleSmall,
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '기록 ${events.length}건',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleSmall,
+                                  ),
+                                  Text(
+                                    '기록 시각: ${formatDateTime(recordTime)}',
+                                    style:
+                                        Theme.of(context).textTheme.bodySmall,
+                                  ),
+                                ],
+                              ),
                             ),
-                            const Spacer(),
                             TextButton.icon(
                               icon: const Icon(Icons.add),
                               label: const Text('기록 추가'),
                               onPressed: () => showEventSheet(
                                 context,
-                                caseId,
-                                source,
+                                widget.caseId,
+                                _source,
+                                initialDisplayed: recordTime,
                               ),
                             ),
                           ],
