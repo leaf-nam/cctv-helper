@@ -1,0 +1,26 @@
+# Flutter / Dart
+.dart_tool/
+.build/
+.idea/
+.vscode/
+build/
+*.iml
+*.g.dart
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+pubspec.lock
+
+# macOS / Android / iOS 부산물
+.DS_Store
+android/.gradle/
+ios/Pods/
+macos/Pods/
+*.keystore
+*.jks
+google-services.json
+GoogleService-Info.plist
+
+# 환경 부산물
+*.log
