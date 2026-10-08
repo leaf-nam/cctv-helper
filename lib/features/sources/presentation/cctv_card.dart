@@ -501,8 +501,8 @@ class _CctvCardState extends State<CctvCard> {
                                       e.memo.isEmpty ? '(메모 없음)' : e.memo,
                                     ),
                                     subtitle: Text(
-                                      '보정 ${formatDateTime(e.correctedAt)} '
-                                      '(영상 ${formatDateTime(e.displayedAt)})',
+                                      'CCTV ${formatDateTime(e.displayedAt)}\n'
+                                      '실제 ${formatDateTime(e.correctedAt)}',
                                     ),
                                     trailing: IconButton(
                                       icon: const Icon(

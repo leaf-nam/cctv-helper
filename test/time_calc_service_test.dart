@@ -27,6 +27,27 @@ void main() {
       );
     });
 
+    test('밀리초 버림·초 단위 계산', () {
+      expect(
+        TimeCalcService.offsetMillis(
+          displayedAt: DateTime(2026, 10, 8, 14, 0, 0, 500),
+          actualAt: DateTime(2026, 10, 8, 14, 2, 0, 700),
+        ),
+        120000,
+      );
+      expect(
+        TimeCalcService.correctedAt(
+          displayedAt: DateTime(2026, 10, 8, 14, 0, 0, 500),
+          offsetMillis: 120000,
+        ),
+        DateTime(2026, 10, 8, 14, 2, 0),
+      );
+      expect(
+        TimeCalcService.truncateToSecond(
+          DateTime(2026, 10, 8, 14, 0, 0, 999),
+        ),
+        DateTime(2026, 10, 8, 14, 0, 0),
+      );
     test('보정시각 = 표시시각 + 오프셋', () {
       final displayed = DateTime(2026, 10, 8, 14, 0, 0);
       final corrected = TimeCalcService.correctedAt(
