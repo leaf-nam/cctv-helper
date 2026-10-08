@@ -49,6 +49,15 @@ Future<void> showTimeEditSheet(
       String? directError;
       return StatefulBuilder(
         builder: (context, setState) {
+          // 스테퍼·지금·달력 변경 시 입력칸 표시도 함께 갱신
+          Future<void> applyAndSync(
+            void Function(void Function()) setState,
+            DateTime value,
+          ) async {
+            await apply(setState, value);
+            directController.text = formatDateTime(value);
+          }
+
           Widget stepButton(String text, Duration delta) {
             return Expanded(
               child: Padding(
@@ -60,7 +69,7 @@ Future<void> showTimeEditSheet(
                       vertical: 12,
                     ),
                   ),
-                  onPressed: () => apply(setState, current.add(delta)),
+                  onPressed: () => applyAndSync(setState, current.add(delta)),
                   child: Text(text, style: const TextStyle(fontSize: 13)),
                 ),
               ),
@@ -106,16 +115,27 @@ Future<void> showTimeEditSheet(
               children: [
                 Text(title, style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 8),
-                Text(
-                  formatDateTime(current),
+                // 상단 시간 자체가 입력칸 (탭해 직접 타이핑, Enter로 적용)
+                TextField(
+                  controller: directController,
+                  textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.headlineSmall,
+                  decoration: InputDecoration(
+                    border: InputBorder.none,
+                    errorText: directError,
+                  ),
+                  onSubmitted: (_) => applyDirect(),
+                ),
+                Text(
+                  '직접 입력 가능 (예: 2026-10-08 22:30:00)',
+                  style: Theme.of(context).textTheme.bodySmall,
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 12),
                 FilledButton.icon(
                   icon: const Icon(Icons.access_time),
                   label: const Text('지금으로 설정'),
-                  onPressed: () => apply(setState, DateTime.now()),
+                  onPressed: () => applyAndSync(setState, DateTime.now()),
                 ),
                 const SizedBox(height: 8),
                 // 가로 2행 스테퍼: 윗행 −, 아랫행 +
@@ -123,27 +143,6 @@ Future<void> showTimeEditSheet(
                 const SizedBox(height: 4),
                 Row(children: stepRow(false)),
                 const SizedBox(height: 8),
-                // 날짜 직접 타이핑 입력
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: directController,
-                        decoration: InputDecoration(
-                          labelText: '직접 입력 (예: 2026-10-08 22:30:00)',
-                          errorText: directError,
-                        ),
-                        onSubmitted: (_) => applyDirect(),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    FilledButton.tonal(
-                      onPressed: applyDirect,
-                      child: const Text('적용'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
                 OutlinedButton.icon(
                   icon: const Icon(Icons.calendar_month),
                   label: const Text('날짜·시간 직접 선택'),
@@ -151,8 +150,7 @@ Future<void> showTimeEditSheet(
                     final picked = await pickDateTime(context, current);
                     if (picked == null) return;
                     if (!context.mounted) return;
-                    directController.text = formatDateTime(picked);
-                    await apply(setState, picked);
+                    await applyAndSync(setState, picked);
                   },
                 ),
                 const SizedBox(height: 4),
