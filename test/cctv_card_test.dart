@@ -46,10 +46,14 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(TextButton, '닫기'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('실제 2026-10-08 15:02:00'), findsOneWidget);
+    // 확인 결과가 기준처럼 위아래 2행으로 분리 표시
+    expect(find.text('CCTV 시간'), findsOneWidget);
+    expect(find.text('실제 시간'), findsOneWidget);
+    expect(find.text('2026-10-08 15:00:00'), findsWidgets);
+    expect(find.text('2026-10-08 15:02:00'), findsOneWidget);
 
     // 기록 추가 시 확인된 시간이 초기값으로 들어감
-    await tester.tap(find.widgetWithText(TextButton, '기록 추가'));
+    await tester.tap(find.widgetWithText(FilledButton, '기록 추가'));
     await tester.pumpAndSettle();
     expect(
       find.textContaining('영상 시각: 2026-10-08 15:00:00'),
@@ -76,7 +80,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.widgetWithText(TextButton, '입력').first);
+    // 실제 시각 행(두 번째 입력 버튼)에서 열었으므로 actualAt 갱신
+    await tester.tap(find.widgetWithText(TextButton, '입력').at(1));
     await tester.pumpAndSettle();
 
     // 가로 2행 스테퍼 (윗행 −, 아랫행 +)
@@ -121,10 +126,10 @@ void main() {
     final cctvLabel = find.text('CCTV 시각');
     expect(actualLabel, findsOneWidget);
     expect(cctvLabel, findsOneWidget);
-    // 실제 행이 CCTV 행보다 위에 배치 + 기준 박스 표기
+    // CCTV 행이 위·실제 행이 아래에 배치 + 기준 박스 표기
     expect(
-      tester.getTopLeft(actualLabel).dy,
-      lessThan(tester.getTopLeft(cctvLabel).dy),
+      tester.getTopLeft(cctvLabel).dy,
+      lessThan(tester.getTopLeft(actualLabel).dy),
     );
     expect(find.text('기준'), findsOneWidget);
     // 행별 입력/지금 버튼
@@ -133,7 +138,7 @@ void main() {
     // 추가 시 실제 시각만 초기화 → 하단 기능 숨김 + 안내 문구
     expect(find.textContaining('펼쳐집니다'), findsOneWidget);
     expect(find.text('시간 확인'), findsNothing);
-    expect(find.widgetWithText(TextButton, '기록 추가'), findsNothing);
+    expect(find.widgetWithText(FilledButton, '기록 추가'), findsNothing);
 
     // CCTV 시각 입력 → 아코디언 전개, 사람이 읽기 쉬운 오차 문장 표시
     final source = sources.byCase(caseId).first;
@@ -171,10 +176,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // CCTV 행의 값 칸(두 번째 TextField)에 바로 타이핑 → 기준 확정
+    // CCTV 행의 값 칸(첫 번째 TextField)에 바로 타이핑 → 기준 확정
     final fields = find.byType(TextField);
     expect(fields, findsNWidgets(2));
-    await tester.enterText(fields.at(1), '2026-10-08 14:00:00');
+    await tester.enterText(fields.at(0), '2026-10-08 14:00:00');
     await tester.pumpAndSettle();
     await tester.pump(const Duration(milliseconds: 400));
     final updated = sources.byCase(caseId).first;

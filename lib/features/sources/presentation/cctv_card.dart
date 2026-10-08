@@ -144,11 +144,50 @@ class _CctvCardState extends State<CctvCard> {
             ),
           ],
         ),
-        Text(
-          _checkedTime == null
-              ? 'CCTV 시간을 입력하세요.'
-              : 'CCTV ${formatDateTime(_checkedTime)} → 실제 ${formatDateTime(corrected)}',
-          style: Theme.of(context).textTheme.bodyMedium,
+        if (_checkedTime == null)
+          const Text('CCTV 시간을 입력하세요.')
+        else ...[
+          _resultRow(
+            context,
+            icon: Icons.videocam,
+            label: 'CCTV 시간',
+            value: _checkedTime!,
+          ),
+          const Divider(),
+          _resultRow(
+            context,
+            icon: Icons.access_time,
+            label: '실제 시간',
+            value: corrected!,
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// 확인 결과 표시 행 (기준 행과 같은 위아래 구조, 읽기 전용).
+  Widget _resultRow(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required DateTime value,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, color: Theme.of(context).colorScheme.primary),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: Theme.of(context).textTheme.labelMedium),
+              const SizedBox(height: 2),
+              Text(
+                formatDateTime(value),
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -341,19 +380,27 @@ class _CctvCardState extends State<CctvCard> {
                   const SizedBox(height: 4),
                   _timeRow(
                     context,
-                    label: '실제 시각',
-                    icon: Icons.access_time,
-                    value: _source.actualAt,
-                    displayed: false,
-                  ),
-                  const Divider(),
-                  _timeRow(
-                    context,
                     label: 'CCTV 시각',
                     icon: Icons.videocam,
                     value: _source.displayedAt,
                     displayed: true,
                   ),
+                  const Divider(),
+                  _timeRow(
+                    context,
+                    label: '실제 시각',
+                    icon: Icons.access_time,
+                    value: _source.actualAt,
+                    displayed: false,
+                  ),
+                  // 오차 문구도 기준 표 안에 표시 (기준 확정 시에만)
+                  if (ready) ...[
+                    const Divider(),
+                    Text(
+                      TimeCalcService.formatOffset(offset),
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -367,45 +414,13 @@ class _CctvCardState extends State<CctvCard> {
                   ? Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          TimeCalcService.formatOffset(offset),
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                        const Divider(),
                         _timeChecker(),
                         const Divider(),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    '기록 ${events.length}건',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleSmall,
-                                  ),
-                                  Text(
-                                    '기록 시각: ${formatDateTime(recordTime)}',
-                                    style:
-                                        Theme.of(context).textTheme.bodySmall,
-                                  ),
-                                ],
-                              ),
-                            ),
-                            TextButton.icon(
-                              icon: const Icon(Icons.add),
-                              label: const Text('기록 추가'),
-                              onPressed: () => showEventSheet(
-                                context,
-                                widget.caseId,
-                                _source,
-                                initialDisplayed: recordTime,
-                              ),
-                            ),
-                          ],
+                        Text(
+                          '기록 ${events.length}건',
+                          style: Theme.of(context).textTheme.titleSmall,
                         ),
+                        const SizedBox(height: 4),
                         if (events.isEmpty)
                           const Text('아직 기록이 없습니다.')
                         else
@@ -441,6 +456,26 @@ class _CctvCardState extends State<CctvCard> {
                               ),
                             ),
                           ),
+                        const SizedBox(height: 8),
+                        // 목록 아래 기록 추가: 이 시각으로 바로 기록됨을 직관적으로 표시
+                        Text(
+                          '이 시각으로 기록: ${formatDateTime(recordTime)}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        const SizedBox(height: 4),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.icon(
+                            icon: const Icon(Icons.add),
+                            label: const Text('기록 추가'),
+                            onPressed: () => showEventSheet(
+                              context,
+                              widget.caseId,
+                              _source,
+                              initialDisplayed: recordTime,
+                            ),
+                          ),
+                        ),
                       ],
                     )
                   : const SizedBox(width: double.infinity, height: 0),
