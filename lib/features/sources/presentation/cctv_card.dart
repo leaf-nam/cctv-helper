@@ -198,6 +198,8 @@ class CctvCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final offset = source.offsetMillis;
+    // 기준 시각 2개가 모두 입력돼 오프셋이 확정될 때만 하단 기능 공개.
+    final ready = offset != null;
     final events = context
         .watch<EventsProvider>()
         .bySource(source.id);
@@ -245,54 +247,71 @@ class CctvCard extends StatelessWidget {
               displayed: true,
             ),
             const Divider(),
-            const SizedBox(height: 4),
-            Text(
-              offset == null
-                  ? '오차: 미계산 (시각 2개를 모두 입력하세요)'
-                  : TimeCalcService.formatOffset(offset),
-              style: Theme.of(context).textTheme.bodyMedium,
+            // 아코디언: 기준 확정 시 펼쳐지며 오차·확인·기록 공개
+            AnimatedSize(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              alignment: Alignment.topCenter,
+              child: ready
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          TimeCalcService.formatOffset(offset),
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        const Divider(),
+                        _TimeChecker(source: source),
+                        const Divider(),
+                        Row(
+                          children: [
+                            Text(
+                              '기록 ${events.length}건',
+                              style: Theme.of(context).textTheme.titleSmall,
+                            ),
+                            const Spacer(),
+                            TextButton.icon(
+                              icon: const Icon(Icons.add),
+                              label: const Text('기록 추가'),
+                              onPressed: () => showEventSheet(
+                                context,
+                                caseId,
+                                source,
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (events.isEmpty)
+                          const Text('아직 기록이 없습니다.')
+                        else
+                          ...events.map(
+                            (e) => ListTile(
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(
+                                e.memo.isEmpty ? '(메모 없음)' : e.memo,
+                              ),
+                              subtitle: Text(
+                                '보정 ${formatDateTime(e.correctedAt)} '
+                                '(영상 ${formatDateTime(e.displayedAt)})'
+                                '${e.photoPath.isEmpty ? '' : '\n사진: ${e.photoPath}'}',
+                              ),
+                              trailing: IconButton(
+                                icon: const Icon(Icons.delete_outline),
+                                onPressed: () => context
+                                    .read<EventsProvider>()
+                                    .removeEvent(e.id),
+                              ),
+                            ),
+                          ),
+                      ],
+                    )
+                  : const SizedBox(width: double.infinity, height: 0),
             ),
-            const Divider(),
-            _TimeChecker(source: source),
-            const Divider(),
-            Row(
-              children: [
-                Text(
-                  '기록 ${events.length}건',
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-                const Spacer(),
-                TextButton.icon(
-                  icon: const Icon(Icons.add),
-                  label: const Text('기록 추가'),
-                  onPressed: offset == null
-                      ? null
-                      : () => showEventSheet(context, caseId, source),
-                ),
-              ],
-            ),
-            if (events.isEmpty)
-              const Text('아직 기록이 없습니다.')
-            else
-              ...events.map(
-                (e) => ListTile(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(
-                    e.memo.isEmpty ? '(메모 없음)' : e.memo,
-                  ),
-                  subtitle: Text(
-                    '보정 ${formatDateTime(e.correctedAt)} '
-                    '(영상 ${formatDateTime(e.displayedAt)})'
-                    '${e.photoPath.isEmpty ? '' : '\n사진: ${e.photoPath}'}',
-                  ),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete_outline),
-                    onPressed: () => context
-                        .read<EventsProvider>()
-                        .removeEvent(e.id),
-                  ),
-                ),
+            if (!ready)
+              Text(
+                'CCTV·실제 시각을 모두 입력하면 오차·확인·기록 기능이 펼쳐집니다.',
+                style: Theme.of(context).textTheme.bodySmall,
               ),
           ],
         ),
