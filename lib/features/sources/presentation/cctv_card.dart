@@ -231,20 +231,52 @@ class _CctvCardState extends State<CctvCard> {
               ],
             ),
             const SizedBox(height: 4),
-            _timeRow(
-              context,
-              label: '실제 시각',
-              icon: Icons.access_time,
-              value: _source.actualAt,
-              displayed: false,
-            ),
-            const Divider(),
-            _timeRow(
-              context,
-              label: 'CCTV 시각',
-              icon: Icons.videocam,
-              value: _source.displayedAt,
-              displayed: true,
+            // 기준 영역: 배경+테두리 박스로 시간확인·기록과 시각 분리
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(10, 8, 4, 10),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                ),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.push_pin,
+                        size: 14,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '기준',
+                        style: Theme.of(context).textTheme.labelSmall,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  _timeRow(
+                    context,
+                    label: '실제 시각',
+                    icon: Icons.access_time,
+                    value: _source.actualAt,
+                    displayed: false,
+                  ),
+                  const Divider(),
+                  _timeRow(
+                    context,
+                    label: 'CCTV 시각',
+                    icon: Icons.videocam,
+                    value: _source.displayedAt,
+                    displayed: true,
+                  ),
+                ],
+              ),
             ),
             const Divider(),
             // 아코디언: 기준 확정 시 펼쳐지며 오차·확인·기록 공개

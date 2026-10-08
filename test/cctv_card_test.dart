@@ -114,11 +114,12 @@ void main() {
     final cctvLabel = find.text('CCTV 시각');
     expect(actualLabel, findsOneWidget);
     expect(cctvLabel, findsOneWidget);
-    // 실제 행이 CCTV 행보다 위에 배치
+    // 실제 행이 CCTV 행보다 위에 배치 + 기준 박스 표기
     expect(
       tester.getTopLeft(actualLabel).dy,
       lessThan(tester.getTopLeft(cctvLabel).dy),
     );
+    expect(find.text('기준'), findsOneWidget);
     // 행별 입력/지금 버튼
     expect(find.widgetWithText(TextButton, '입력'), findsNWidgets(2));
     expect(find.widgetWithText(TextButton, '지금'), findsNWidgets(2));
