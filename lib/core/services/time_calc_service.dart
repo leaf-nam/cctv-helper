@@ -18,18 +18,28 @@ class TimeCalcService {
     return displayedAt.add(Duration(milliseconds: offsetMillis));
   }
 
-  /// 오프셋 ms를 `+1시간 2분 3초 (+3723000ms)` 형태로 포맷.
+  /// 오프셋 ms를 사람이 읽기 쉬운 문장으로 포맷.
+  /// 예: `CCTV가 2분 느림 (+120000ms)`, `CCTV가 1분 30초 빠름 (-90000ms)`.
+  ///
+  /// 부호 규약: 오프셋 = 실제 − 표시. 양수면 CCTV 시계가 실제보다
+  /// 뒤처져 있으므로 "느림", 음수면 앞서 있으므로 "빠름".
   static String formatOffset(int millis) {
-    final sign = millis < 0 ? '-' : '+';
+    if (millis == 0) return '시간 오차 없음 (0ms)';
     final abs = millis.abs();
-    final h = abs ~/ 3600000;
+    final d = abs ~/ 86400000;
+    final h = (abs % 86400000) ~/ 3600000;
     final m = (abs % 3600000) ~/ 60000;
     final s = (abs % 60000) ~/ 1000;
     final ms = abs % 1000;
     final parts = <String>[];
+    if (d > 0) parts.add('$d일');
     if (h > 0) parts.add('$h시간');
-    if (m > 0 || h > 0) parts.add('$m분');
-    parts.add(ms > 0 ? '$s.${ms.toString().padLeft(3, '0')}초' : '$s초');
-    return '$sign${parts.join(' ')} ($sign${abs}ms)';
+    if (m > 0) parts.add('$m분');
+    if (s > 0 || ms > 0 || parts.isEmpty) {
+      parts.add(ms > 0 ? '$s.${ms.toString().padLeft(3, '0')}초' : '$s초');
+    }
+    final pace = millis > 0 ? '느림' : '빠름';
+    final sign = millis > 0 ? '+' : '-';
+    return 'CCTV가 ${parts.join(' ')} $pace ($sign${abs}ms)';
   }
 }

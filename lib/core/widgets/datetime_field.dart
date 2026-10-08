@@ -19,10 +19,10 @@ Future<DateTime?> pickDateTime(BuildContext context, DateTime? initial) async {
   return DateTime(date.year, date.month, date.day, time.hour, time.minute);
 }
 
-/// `yyyy-MM-dd HH:mm` 표시.
+/// `yyyy-MM-dd HH:mm:ss` 표시 (10초/1초 스테퍼 대응).
 String formatDateTime(DateTime? value) {
   if (value == null) return '미입력';
   String two(int v) => v.toString().padLeft(2, '0');
   return '${value.year}-${two(value.month)}-${two(value.day)} '
-      '${two(value.hour)}:${two(value.minute)}';
+      '${two(value.hour)}:${two(value.minute)}:${two(value.second)}';
 }

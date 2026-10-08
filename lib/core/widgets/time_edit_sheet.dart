@@ -5,7 +5,7 @@ import 'datetime_field.dart';
 /// 시각 편집 바텀시트.
 ///
 /// 달력→시계 2단계 피커만으로는 맞추기 힘들어
-/// [지금] 버튼과 ±스테퍼(1시간/10분/1분)를 제공한다.
+/// [지금] 버튼과 2열 ±스테퍼 테이블(1일/1시간/10분/1분/10초/1초)을 제공한다.
 /// 모든 변경은 즉시 `onChanged`로 반영된다 (live-apply).
 Future<void> showTimeEditSheet(
   BuildContext context, {
@@ -30,16 +30,28 @@ Future<void> showTimeEditSheet(
     }
   }
 
+  const units = <({String label, Duration duration})>[
+    (label: '1일', duration: Duration(days: 1)),
+    (label: '1시간', duration: Duration(hours: 1)),
+    (label: '10분', duration: Duration(minutes: 10)),
+    (label: '1분', duration: Duration(minutes: 1)),
+    (label: '10초', duration: Duration(seconds: 10)),
+    (label: '1초', duration: Duration(seconds: 1)),
+  ];
+
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     builder: (sheetContext) {
       return StatefulBuilder(
         builder: (context, setState) {
-          Widget stepButton(String label, Duration delta) {
-            return OutlinedButton(
-              onPressed: () => apply(setState, current.add(delta)),
-              child: Text(label),
+          Widget stepCell(String text, Duration delta) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              child: OutlinedButton(
+                onPressed: () => apply(setState, current.add(delta)),
+                child: Text(text, style: const TextStyle(fontSize: 16)),
+              ),
             );
           }
 
@@ -68,17 +80,24 @@ Future<void> showTimeEditSheet(
                   onPressed: () => apply(setState, DateTime.now()),
                 ),
                 const SizedBox(height: 8),
-                Wrap(
-                  alignment: WrapAlignment.center,
-                  spacing: 8,
-                  runSpacing: 4,
+                Table(
+                  columnWidths: const {
+                    0: FlexColumnWidth(),
+                    1: FlexColumnWidth(),
+                  },
                   children: [
-                    stepButton('-1시간', const Duration(hours: -1)),
-                    stepButton('-10분', const Duration(minutes: -10)),
-                    stepButton('-1분', const Duration(minutes: -1)),
-                    stepButton('+1분', const Duration(minutes: 1)),
-                    stepButton('+10분', const Duration(minutes: 10)),
-                    stepButton('+1시간', const Duration(hours: 1)),
+                    for (final unit in units)
+                      TableRow(
+                        children: [
+                          stepCell(
+                            '− ${unit.label}',
+                            Duration(
+                              microseconds: -unit.duration.inMicroseconds,
+                            ),
+                          ),
+                          stepCell('+ ${unit.label}', unit.duration),
+                        ],
+                      ),
                   ],
                 ),
                 const SizedBox(height: 8),

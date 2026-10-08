@@ -36,11 +36,20 @@ void main() {
       expect(corrected, DateTime(2026, 10, 8, 14, 2, 0));
     });
 
-    test('formatOffset 부호·단위 표시', () {
-      expect(TimeCalcService.formatOffset(120000), contains('+'));
-      expect(TimeCalcService.formatOffset(120000), contains('120000ms'));
-      expect(TimeCalcService.formatOffset(-90000), contains('-'));
-      expect(TimeCalcService.formatOffset(0), contains('+0ms'));
+    test('formatOffset 사람 읽기 쉬운 문장', () {
+      expect(
+        TimeCalcService.formatOffset(120000),
+        'CCTV가 2분 느림 (+120000ms)',
+      );
+      expect(
+        TimeCalcService.formatOffset(-90000),
+        'CCTV가 1분 30초 빠름 (-90000ms)',
+      );
+      expect(
+        TimeCalcService.formatOffset(90061000),
+        'CCTV가 1일 1시간 1분 1초 느림 (+90061000ms)',
+      );
+      expect(TimeCalcService.formatOffset(0), '시간 오차 없음 (0ms)');
     });
   });
 }

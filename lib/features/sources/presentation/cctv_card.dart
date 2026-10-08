@@ -183,7 +183,7 @@ class CctvCard extends StatelessWidget {
             Text(
               offset == null
                   ? '오차: 미계산 (시각 2개를 모두 입력하세요)'
-                  : '오차: ${TimeCalcService.formatOffset(offset)}',
+                  : TimeCalcService.formatOffset(offset),
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const Divider(),
