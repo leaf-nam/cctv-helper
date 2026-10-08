@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/widgets/datetime_field.dart';
+import '../../../core/widgets/time_edit_sheet.dart';
 import '../../events/providers/events_provider.dart';
 import '../../sources/domain/cctv_source.dart';
 
@@ -36,15 +37,26 @@ Future<void> showEventSheet(
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 8),
-                ActionChip(
-                  label: Text('영상 시각: ${formatDateTime(displayed)}'),
-                  onPressed: () async {
-                    final picked =
-                        await pickDateTime(context, displayed);
-                    if (picked != null) {
-                      setState(() => displayed = picked);
-                    }
-                  },
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '영상 시각: ${formatDateTime(displayed)}',
+                        style: Theme.of(context).textTheme.bodyLarge,
+                      ),
+                    ),
+                    TextButton.icon(
+                      icon: const Icon(Icons.edit_calendar),
+                      label: const Text('입력'),
+                      onPressed: () => showTimeEditSheet(
+                        context,
+                        title: '사건 영상 시각 입력',
+                        initial: displayed,
+                        onChanged: (v) async =>
+                            setState(() => displayed = v),
+                      ),
+                    ),
+                  ],
                 ),
                 TextField(
                   controller: memoController,

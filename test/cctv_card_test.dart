@@ -93,5 +93,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('미계산'), findsNothing);
     expect(find.textContaining('CCTV가 2분 느림'), findsOneWidget);
+    // 기준 확정 후 시간 확인칸 표시
+    expect(find.text('시간 확인'), findsOneWidget);
+    expect(find.text('CCTV 시간을 입력하세요.'), findsOneWidget);
   });
 }

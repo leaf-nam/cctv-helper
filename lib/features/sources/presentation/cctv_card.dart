@@ -8,6 +8,66 @@ import '../../events/providers/events_provider.dart';
 import '../../sources/domain/cctv_source.dart';
 import 'event_sheet.dart';
 
+/// CCTV→실제 시간 확인칸.
+///
+/// 위 기준 시각 2개로 확정된 오프셋으로, 임의의 CCTV 시간이
+/// 실제 몇 시인지 확인한다. 기준 미확정 시 안내만 표시.
+class _TimeChecker extends StatefulWidget {
+  final CctvSource source;
+
+  const _TimeChecker({required this.source});
+
+  @override
+  State<_TimeChecker> createState() => _TimeCheckerState();
+}
+
+class _TimeCheckerState extends State<_TimeChecker> {
+  DateTime? _query;
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.source.offsetMillis == null) {
+      return Text(
+        '기준 시각 2개를 입력하면 시간 확인이 가능합니다.',
+        style: Theme.of(context).textTheme.bodySmall,
+      );
+    }
+    final corrected =
+        _query == null ? null : widget.source.correct(_query!);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.search, size: 18),
+            const SizedBox(width: 4),
+            Text('시간 확인', style: Theme.of(context).textTheme.titleSmall),
+            const Spacer(),
+            TextButton.icon(
+              icon: const Icon(Icons.edit_calendar),
+              label: const Text('CCTV 시간 입력'),
+              onPressed: () => showTimeEditSheet(
+                context,
+                title: '확인할 CCTV 시간',
+                initial: _query ??
+                    widget.source.displayedAt ??
+                    DateTime.now(),
+                onChanged: (v) async => setState(() => _query = v),
+              ),
+            ),
+          ],
+        ),
+        Text(
+          _query == null
+              ? 'CCTV 시간을 입력하세요.'
+              : 'CCTV ${formatDateTime(_query)} → 실제 ${formatDateTime(corrected)}',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+      ],
+    );
+  }
+}
+
 /// CCTV 카드 1개: 시간 입력(#1)·오차 표시(#2)·이벤트 목록(#3).
 class CctvCard extends StatelessWidget {
   final String caseId;
@@ -192,6 +252,8 @@ class CctvCard extends StatelessWidget {
                   : TimeCalcService.formatOffset(offset),
               style: Theme.of(context).textTheme.bodyMedium,
             ),
+            const Divider(),
+            _TimeChecker(source: source),
             const Divider(),
             Row(
               children: [

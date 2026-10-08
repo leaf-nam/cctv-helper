@@ -44,6 +44,8 @@ void main() {
         'CCTV가 1일 1시간 1분 1초 느림',
       );
       expect(TimeCalcService.formatOffset(0), '시간 오차 없음');
+      expect(TimeCalcService.formatOffset(1500), 'CCTV가 2초 느림');
+      expect(TimeCalcService.formatOffset(500), 'CCTV가 1초 느림');
     });
   });
 }
