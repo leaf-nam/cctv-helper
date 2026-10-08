@@ -132,10 +132,10 @@ class _CctvCardState extends State<CctvCard> {
             const Spacer(),
             TextButton.icon(
               icon: const Icon(Icons.edit_calendar),
-              label: const Text('CCTV 시간 입력'),
+              label: const Text('CCTV 시각 입력'),
               onPressed: () => showTimeEditSheet(
                 context,
-                title: '확인할 CCTV 시간',
+                title: '확인할 CCTV 시각',
                 initial: _checkedTime ??
                     _source.displayedAt ??
                     DateTime.now(),
@@ -150,14 +150,15 @@ class _CctvCardState extends State<CctvCard> {
           _resultRow(
             context,
             icon: Icons.videocam,
-            label: 'CCTV 시간',
+            label: 'CCTV 시각',
             value: _checkedTime!,
+            onChanged: (v) async => setState(() => _checkedTime = v),
           ),
           const Divider(),
           _resultRow(
             context,
             icon: Icons.access_time,
-            label: '실제 시간',
+            label: '실제 시각',
             value: corrected!,
           ),
         ],
@@ -165,12 +166,14 @@ class _CctvCardState extends State<CctvCard> {
     );
   }
 
-  /// 확인 결과 표시 행 (기준 행과 같은 위아래 구조, 읽기 전용).
+  /// 확인 결과 표시 행 (기준 행과 같은 위아래 구조).
+  /// CCTV 행은 바로 타이핑 가능, 실제 행은 계산값이라 읽기 전용.
   Widget _resultRow(
     BuildContext context, {
     required IconData icon,
     required String label,
     required DateTime value,
+    Future<void> Function(DateTime)? onChanged,
   }) {
     return Row(
       children: [
@@ -182,10 +185,13 @@ class _CctvCardState extends State<CctvCard> {
             children: [
               Text(label, style: Theme.of(context).textTheme.labelMedium),
               const SizedBox(height: 2),
-              Text(
-                formatDateTime(value),
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
+              if (onChanged == null)
+                Text(
+                  formatDateTime(value),
+                  style: Theme.of(context).textTheme.titleMedium,
+                )
+              else
+                _InlineTimeText(value: value, onChanged: onChanged),
             ],
           ),
         ),

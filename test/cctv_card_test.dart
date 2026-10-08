@@ -34,8 +34,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // 시간 확인칸에 CCTV 시간 입력 후 시트 닫기
-    await tester.tap(find.widgetWithText(TextButton, 'CCTV 시간 입력'));
+    // 시간 확인칸에 CCTV 시각 입력 후 시트 닫기
+    await tester.tap(find.widgetWithText(TextButton, 'CCTV 시각 입력'));
     await tester.pumpAndSettle();
     final checkerField = find.descendant(
       of: find.byType(BottomSheet),
@@ -47,8 +47,8 @@ void main() {
     await tester.tap(find.widgetWithText(TextButton, '닫기'));
     await tester.pumpAndSettle();
     // 확인 결과가 기준처럼 위아래 2행으로 분리 표시
-    expect(find.text('CCTV 시간'), findsOneWidget);
-    expect(find.text('실제 시간'), findsOneWidget);
+    expect(find.text('CCTV 시각'), findsWidgets);
+    expect(find.text('실제 시각'), findsWidgets);
     expect(find.text('2026-10-08 15:00:00'), findsWidgets);
     expect(find.text('2026-10-08 15:02:00'), findsOneWidget);
 
