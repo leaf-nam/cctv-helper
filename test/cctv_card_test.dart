@@ -37,7 +37,12 @@ void main() {
     // 시간 확인칸에 CCTV 시간 입력 후 시트 닫기
     await tester.tap(find.widgetWithText(TextButton, 'CCTV 시간 입력'));
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField), '2026-10-08 15:00:00');
+    final checkerField = find.descendant(
+      of: find.byType(BottomSheet),
+      matching: find.byType(TextField),
+    );
+    expect(checkerField, findsOneWidget);
+    await tester.enterText(checkerField, '2026-10-08 15:00:00');
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(TextButton, '닫기'));
     await tester.pumpAndSettle();
@@ -80,11 +85,13 @@ void main() {
     expect(find.text('−1초'), findsOneWidget);
     expect(find.text('+1초'), findsOneWidget);
 
-    // 상단 시간 직접 타이핑 → Enter 없이 즉시 적용
-    await tester.enterText(
-      find.byType(TextField),
-      '2026-10-08 14:00:00',
+    // 상단 시간 직접 타이핑 → Enter 없이 즉시 적용 (시트 안 입력칸)
+    final sheetField = find.descendant(
+      of: find.byType(BottomSheet),
+      matching: find.byType(TextField),
     );
+    expect(sheetField, findsOneWidget);
+    await tester.enterText(sheetField, '2026-10-08 14:00:00');
     await tester.pumpAndSettle();
     final updated = sources.byCase(caseId).first;
     // 실제 시각 행(첫 번째 입력 버튼)에서 열었으므로 actualAt 갱신
@@ -138,9 +145,40 @@ void main() {
     await tester.pumpAndSettle();
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.textContaining('펼쳐집니다'), findsNothing);
-    expect(find.textContaining('CCTV가 2분 느림'), findsOneWidget);
+    expect(find.textContaining('CCTV가 2분 0초 느림'), findsOneWidget);
     // 기준 확정 후 시간 확인칸 표시
     expect(find.text('시간 확인'), findsOneWidget);
     expect(find.text('CCTV 시간을 입력하세요.'), findsOneWidget);
+  });
+
+  testWidgets('행에서 바로 타이핑 입력', (tester) async {
+    final cases = CasesProvider();
+    final sources = SourcesProvider();
+    final events = EventsProvider();
+    await cases.addCase('사건1');
+    final caseId = cases.cases.first.id;
+    await sources.addSource(caseId, '입구');
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider.value(value: cases),
+          ChangeNotifierProvider.value(value: sources),
+          ChangeNotifierProvider.value(value: events),
+        ],
+        child: MaterialApp(home: CaseDetailScreen(caseId: caseId)),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // CCTV 행의 값 칸(두 번째 TextField)에 바로 타이핑 → 기준 확정
+    final fields = find.byType(TextField);
+    expect(fields, findsNWidgets(2));
+    await tester.enterText(fields.at(1), '2026-10-08 14:00:00');
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 400));
+    final updated = sources.byCase(caseId).first;
+    expect(updated.displayedAt, DateTime(2026, 10, 8, 14, 0, 0));
+    expect(find.textContaining('펼쳐집니다'), findsNothing);
   });
 }

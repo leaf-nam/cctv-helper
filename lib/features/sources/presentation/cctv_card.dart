@@ -10,6 +10,72 @@ import '../../events/providers/events_provider.dart';
 import '../../sources/domain/cctv_source.dart';
 import 'event_sheet.dart';
 
+/// 행 내 시각 텍스트 직접 입력칸.
+///
+/// 시트를 열지 않고 값에 바로 타이핑하면 파싱 가능한 순간 즉시 반영한다.
+/// 포커스 중에는 외부 값 동기화를 건드리지 않아 타이핑이 끊기지 않는다.
+class _InlineTimeText extends StatefulWidget {
+  final DateTime? value;
+  final Future<void> Function(DateTime value) onChanged;
+
+  const _InlineTimeText({required this.value, required this.onChanged});
+
+  @override
+  State<_InlineTimeText> createState() => _InlineTimeTextState();
+}
+
+class _InlineTimeTextState extends State<_InlineTimeText> {
+  late final TextEditingController _controller;
+  late final FocusNode _focus;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: formatDateTime(widget.value));
+    _focus = FocusNode();
+  }
+
+  @override
+  void didUpdateWidget(covariant _InlineTimeText oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 타이핑 중(포커스 있음)에는 손대지 않는다.
+    if (_focus.hasFocus) return;
+    final formatted = formatDateTime(widget.value);
+    if (_controller.text != formatted) {
+      _controller.text = formatted;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  Future<void> _applyLive(String text) async {
+    final parsed = DateTime.tryParse(text.trim().replaceAll('/', '-'));
+    if (parsed == null || parsed == widget.value) return;
+    await widget.onChanged(parsed);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: _controller,
+      focusNode: _focus,
+      style: Theme.of(context).textTheme.titleMedium,
+      decoration: const InputDecoration(
+        border: InputBorder.none,
+        isDense: true,
+        contentPadding: EdgeInsets.zero,
+      ),
+      onChanged: _applyLive,
+      onSubmitted: _applyLive,
+    );
+  }
+}
+
 /// CCTV 카드 1개: 시간 입력(#1)·오차 표시(#2)·이벤트 목록(#3).
 ///
 /// 시간 확인칸의 조회 시각(`_checkedTime`)을 상태로 들고 있어
@@ -155,6 +221,7 @@ class _CctvCardState extends State<CctvCard> {
 
   /// 시각 입력 행 1개 (전체 너비). 실제 시각이 위, CCTV 시각이 아래에 배치된다.
   /// 행 앞 아이콘으로 구분 (실제=시계, CCTV=카메라).
+  /// 값 텍스트에 바로 타이핑해도 즉시 반영된다 (입력 시트 생략 가능).
   Widget _timeRow(
     BuildContext context, {
     required String label,
@@ -172,9 +239,21 @@ class _CctvCardState extends State<CctvCard> {
             children: [
               Text(label, style: Theme.of(context).textTheme.labelMedium),
               const SizedBox(height: 2),
-              Text(
-                formatDateTime(value),
-                style: Theme.of(context).textTheme.titleMedium,
+              _InlineTimeText(
+                value: value,
+                onChanged: (v) async {
+                  if (displayed) {
+                    await widget.onUpdateTimes(
+                      _source.id,
+                      displayedAt: () => v,
+                    );
+                  } else {
+                    await widget.onUpdateTimes(
+                      _source.id,
+                      actualAt: () => v,
+                    );
+                  }
+                },
               ),
             ],
           ),
