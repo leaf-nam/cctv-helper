@@ -37,19 +37,13 @@ void main() {
     });
 
     test('formatOffset 사람 읽기 쉬운 문장', () {
-      expect(
-        TimeCalcService.formatOffset(120000),
-        'CCTV가 2분 느림 (+120000ms)',
-      );
-      expect(
-        TimeCalcService.formatOffset(-90000),
-        'CCTV가 1분 30초 빠름 (-90000ms)',
-      );
+      expect(TimeCalcService.formatOffset(120000), 'CCTV가 2분 느림');
+      expect(TimeCalcService.formatOffset(-90000), 'CCTV가 1분 30초 빠름');
       expect(
         TimeCalcService.formatOffset(90061000),
-        'CCTV가 1일 1시간 1분 1초 느림 (+90061000ms)',
+        'CCTV가 1일 1시간 1분 1초 느림',
       );
-      expect(TimeCalcService.formatOffset(0), '시간 오차 없음 (0ms)');
+      expect(TimeCalcService.formatOffset(0), '시간 오차 없음');
     });
   });
 }

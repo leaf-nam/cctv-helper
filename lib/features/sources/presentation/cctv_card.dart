@@ -96,14 +96,18 @@ class CctvCard extends StatelessWidget {
   }
 
   /// 시각 입력 행 1개 (전체 너비). 실제 시각이 위, CCTV 시각이 아래에 배치된다.
+  /// 행 앞 아이콘으로 구분 (실제=시계, CCTV=카메라).
   Widget _timeRow(
     BuildContext context, {
     required String label,
+    required IconData icon,
     required DateTime? value,
     required bool displayed,
   }) {
     return Row(
       children: [
+        Icon(icon, color: Theme.of(context).colorScheme.primary),
+        const SizedBox(width: 8),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -168,6 +172,7 @@ class CctvCard extends StatelessWidget {
             _timeRow(
               context,
               label: '실제 시각',
+              icon: Icons.access_time,
               value: source.actualAt,
               displayed: false,
             ),
@@ -175,6 +180,7 @@ class CctvCard extends StatelessWidget {
             _timeRow(
               context,
               label: 'CCTV 시각',
+              icon: Icons.videocam,
               value: source.displayedAt,
               displayed: true,
             ),
