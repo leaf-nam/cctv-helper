@@ -48,6 +48,7 @@ void main() {
         ),
         DateTime(2026, 10, 8, 14, 0, 0),
       );
+    });
     test('보정시각 = 표시시각 + 오프셋', () {
       final displayed = DateTime(2026, 10, 8, 14, 0, 0);
       final corrected = TimeCalcService.correctedAt(
