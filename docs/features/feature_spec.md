@@ -12,7 +12,9 @@
 - **관련 코드**:
   - 모델: `CctvSource.displayedAt`/`actualAt` (`model_spec.md` §4.2 참조).
   - 저장소: `CctvSourceRepository` (`lib/features/sources/data/`).
-  - 화면: `CctvCard`의 `ActionChip` 2개 (`lib/features/sources/presentation/cctv_card.dart`).
+  - 화면: `CctvCard`의 시각 행 2개 (위 실제 / 아래 CCTV, `Divider` 분리) +
+    `showTimeEditSheet()` ([지금] + ±1시간/10분/1분 스테퍼 + 직접 선택, live-apply).
+  - CCTV 추가 시 실제 시각은 현재시간으로 자동 초기화.
   - 입력: `pickDateTime()` (날짜+시간 피커, `lib/core/widgets/datetime_field.dart`).
 
 ## 2. 오차 계산 (#2, 1.0.0 구현됨)

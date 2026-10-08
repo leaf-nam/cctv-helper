@@ -31,6 +31,12 @@ void main() {
       await provider.addSource('case1', '입구');
       await provider.addSource('case1', '출구');
       expect(provider.byCase('case1').length, 2);
+      // 실제 시각은 현재시간으로 초기화, CCTV 시각은 미입력
+      for (final s in provider.byCase('case1')) {
+        expect(s.actualAt, isNotNull);
+        expect(s.displayedAt, isNull);
+        expect(s.offsetMillis, isNull);
+      }
 
       final first = provider.byCase('case1').first;
       await provider.renameSource(first.id, '정문');

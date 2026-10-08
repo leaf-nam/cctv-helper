@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/services/time_calc_service.dart';
 import '../../../core/widgets/datetime_field.dart';
+import '../../../core/widgets/time_edit_sheet.dart';
 import '../../events/providers/events_provider.dart';
 import '../../sources/domain/cctv_source.dart';
 import 'event_sheet.dart';
@@ -61,21 +62,73 @@ class CctvCard extends StatelessWidget {
     await onRename(source.id, name);
   }
 
-  Future<void> _pickTime(
+  /// 시각 편집 시트 열기. `displayed`가 false면 실제 시각.
+  Future<void> _editTime(
     BuildContext context, {
     required bool displayed,
   }) async {
-    final picked = await pickDateTime(
+    await showTimeEditSheet(
       context,
-      displayed ? source.displayedAt : source.actualAt,
+      title: displayed ? 'CCTV 시각 입력' : '실제 시각 입력',
+      initial: (displayed ? source.displayedAt : source.actualAt) ??
+          DateTime.now(),
+      onChanged: (value) async {
+        if (displayed) {
+          await onUpdateTimes(source.id, displayedAt: () => value);
+        } else {
+          await onUpdateTimes(source.id, actualAt: () => value);
+        }
+      },
     );
-    if (picked == null) return;
-    if (!context.mounted) return;
+  }
+
+  /// [지금] 즉시 반영.
+  Future<void> _setNow(
+    BuildContext context, {
+    required bool displayed,
+  }) async {
+    final now = DateTime.now();
     if (displayed) {
-      await onUpdateTimes(source.id, displayedAt: () => picked);
+      await onUpdateTimes(source.id, displayedAt: () => now);
     } else {
-      await onUpdateTimes(source.id, actualAt: () => picked);
+      await onUpdateTimes(source.id, actualAt: () => now);
     }
+  }
+
+  /// 시각 입력 행 1개 (전체 너비). 실제 시각이 위, CCTV 시각이 아래에 배치된다.
+  Widget _timeRow(
+    BuildContext context, {
+    required String label,
+    required DateTime? value,
+    required bool displayed,
+  }) {
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: Theme.of(context).textTheme.labelMedium),
+              const SizedBox(height: 2),
+              Text(
+                formatDateTime(value),
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ],
+          ),
+        ),
+        TextButton.icon(
+          icon: const Icon(Icons.edit_calendar),
+          label: const Text('입력'),
+          onPressed: () => _editTime(context, displayed: displayed),
+        ),
+        TextButton.icon(
+          icon: const Icon(Icons.access_time),
+          label: const Text('지금'),
+          onPressed: () => _setNow(context, displayed: displayed),
+        ),
+      ],
+    );
   }
 
   @override
@@ -112,24 +165,20 @@ class CctvCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 4),
-            Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              children: [
-                ActionChip(
-                  label: Text(
-                    'CCTV 시각: ${formatDateTime(source.displayedAt)}',
-                  ),
-                  onPressed: () => _pickTime(context, displayed: true),
-                ),
-                ActionChip(
-                  label: Text(
-                    '실제 시각: ${formatDateTime(source.actualAt)}',
-                  ),
-                  onPressed: () => _pickTime(context, displayed: false),
-                ),
-              ],
+            _timeRow(
+              context,
+              label: '실제 시각',
+              value: source.actualAt,
+              displayed: false,
             ),
+            const Divider(),
+            _timeRow(
+              context,
+              label: 'CCTV 시각',
+              value: source.displayedAt,
+              displayed: true,
+            ),
+            const Divider(),
             const SizedBox(height: 4),
             Text(
               offset == null

@@ -18,8 +18,17 @@ class SourcesProvider extends ChangeNotifier {
     final trimmed = name.trim();
     if (trimmed.isEmpty) return;
     final order = _repo.getByCase(caseId).length;
+    // 실제 시각은 현재시간으로 초기화 (#1). CCTV 시각은 영상 확인 후 입력.
+    final now = DateTime.now();
     await _repo.add(
-      CctvSource.create(caseId: caseId, name: trimmed, sortOrder: order),
+      CctvSource(
+        id: now.microsecondsSinceEpoch.toString(),
+        caseId: caseId,
+        name: trimmed,
+        sortOrder: order,
+        actualAt: now,
+        createdAt: now,
+      ),
     );
     notifyListeners();
   }
