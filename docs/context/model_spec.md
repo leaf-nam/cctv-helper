@@ -51,7 +51,8 @@ class StoreKeys {
 | `id` | `String` | 사건 ID (microsecondsSinceEpoch) |
 | `title` | `String` | 사건 제목 (필수, 빈 문자열 불가) |
 | `description` | `String` | 설명 (1.0.0 UI 미입력, 예약) |
-| `createdAt` | `DateTime` | 생성 시각 |
+| `sortOrder` | `int` | 사건 목록 순서 (reorder) |
+| `createdAt` | `DateTime` | 생성 시각 (등록일자 표시) |
 
 ### 4.2 `CctvSource` — 영상 원천 (1.0.0 확정, #1·#2·#4)
 

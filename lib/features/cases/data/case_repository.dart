@@ -7,6 +7,7 @@ abstract class CaseRepository {
   Future<void> add(CaseFile item);
   Future<void> update(CaseFile item);
   Future<void> remove(String id);
+  Future<void> importAll(List<CaseFile> items);
 }
 
 /// 메모리 구현체.
@@ -16,7 +17,11 @@ class InMemoryCaseRepository implements CaseRepository {
   @override
   List<CaseFile> getAll() {
     final list = _store.values.toList()
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      ..sort((a, b) {
+        final c = a.sortOrder.compareTo(b.sortOrder);
+        if (c != 0) return c;
+        return b.createdAt.compareTo(a.createdAt);
+      });
     return list;
   }
 
@@ -38,5 +43,12 @@ class InMemoryCaseRepository implements CaseRepository {
   @override
   Future<void> remove(String id) async {
     _store.remove(id);
+  }
+
+  @override
+  Future<void> importAll(List<CaseFile> items) async {
+    _store
+      ..clear()
+      ..addEntries(items.map((e) => MapEntry(e.id, e)));
   }
 }

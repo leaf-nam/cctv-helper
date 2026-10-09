@@ -2,16 +2,21 @@ import '../domain/cctv_source.dart';
 
 /// CCTV 원천 저장소 추상.
 abstract class CctvSourceRepository {
+  List<CctvSource> getAll();
   List<CctvSource> getByCase(String caseId);
   CctvSource? getById(String id);
   Future<void> add(CctvSource item);
   Future<void> update(CctvSource item);
   Future<void> remove(String id);
+  Future<void> importAll(List<CctvSource> items);
 }
 
 /// 메모리 구현체.
 class InMemoryCctvSourceRepository implements CctvSourceRepository {
   final Map<String, CctvSource> _store = {};
+
+  @override
+  List<CctvSource> getAll() => _store.values.toList();
 
   @override
   List<CctvSource> getByCase(String caseId) {
@@ -42,5 +47,12 @@ class InMemoryCctvSourceRepository implements CctvSourceRepository {
   @override
   Future<void> remove(String id) async {
     _store.remove(id);
+  }
+
+  @override
+  Future<void> importAll(List<CctvSource> items) async {
+    _store
+      ..clear()
+      ..addEntries(items.map((e) => MapEntry(e.id, e)));
   }
 }

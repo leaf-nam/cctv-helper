@@ -1,14 +1,36 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../core/constants/store_keys.dart';
+import '../../../core/services/local_store.dart';
 import '../data/cctv_source_repository.dart';
 import '../domain/cctv_source.dart';
 
-/// 사건별 CCTV 목록 상태 관리.
+/// 사건별 CCTV 목록 상태 관리 (로컬 저장 연동).
 class SourcesProvider extends ChangeNotifier {
   final CctvSourceRepository _repo;
+  final LocalStore? _store;
 
-  SourcesProvider([CctvSourceRepository? repo])
-    : _repo = repo ?? InMemoryCctvSourceRepository();
+  SourcesProvider([CctvSourceRepository? repo, LocalStore? store])
+    : _repo = repo ?? InMemoryCctvSourceRepository(),
+      _store = store;
+
+  /// 시작 시 로컬 저장분 복원.
+  Future<void> load() async {
+    final store = _store;
+    if (store == null) return;
+    final docs = store.loadAll(StoreKeys.sources);
+    await _repo.importAll(docs.map(CctvSource.fromMap).toList());
+    notifyListeners();
+  }
+
+  Future<void> _persist() async {
+    final store = _store;
+    if (store == null) return;
+    await store.saveAll(
+      StoreKeys.sources,
+      _repo.getAll().map((e) => e.toMap()).toList(),
+    );
+  }
 
   List<CctvSource> byCase(String caseId) => _repo.getByCase(caseId);
 
@@ -30,6 +52,7 @@ class SourcesProvider extends ChangeNotifier {
         createdAt: now,
       ),
     );
+    await _persist();
     notifyListeners();
   }
 
@@ -38,6 +61,7 @@ class SourcesProvider extends ChangeNotifier {
     final trimmed = name.trim();
     if (found == null || trimmed.isEmpty) return;
     await _repo.update(found.copyWith(name: trimmed));
+    await _persist();
     notifyListeners();
   }
 
@@ -52,6 +76,7 @@ class SourcesProvider extends ChangeNotifier {
     await _repo.update(
       found.copyWith(displayedAt: displayedAt, actualAt: actualAt),
     );
+    await _persist();
     notifyListeners();
   }
 
@@ -70,11 +95,13 @@ class SourcesProvider extends ChangeNotifier {
     for (var i = 0; i < list.length; i++) {
       await _repo.update(list[i].copyWith(sortOrder: i));
     }
+    await _persist();
     notifyListeners();
   }
 
   Future<void> removeSource(String id) async {
     await _repo.remove(id);
+    await _persist();
     notifyListeners();
   }
 }

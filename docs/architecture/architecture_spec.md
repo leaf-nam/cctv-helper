@@ -21,9 +21,11 @@
 - **상태 관리**: `provider` + `ChangeNotifier` + `context.watch`/`context.read` 단일 패턴
   (`malssi`와 동일. `riverpod` 도입 금지).
 - **데이터 계층 (초안)**: feature별 `*_repository.dart` 추상 클래스 + `InMemory*` 구현체.
-- **저장 계층 (초안, 미확정)**: 로컬 저장(`SharedPreferences` + JSON) 우선 검토.
-  영상 바이너리는 저장하지 않고 메타·오프셋·메모만 저장합니다.
-  원격 백엔드 사용 계획 없음 (미확정).
+- **저장 계층 (1.0.0 확정)**: 로컬 저장(`SharedPreferences` + JSON, `LocalStore`,
+  `core/services/local_store.dart`). 사건·CCTV·기록을 `StoreKeys` 키로 저장하고,
+  각 Provider가 변경마다 저장·`main()` 시작 시 1회 복원한다.
+  영상 바이너리는 저장하지 않고 메타·오프셋·메모·사진 경로만 저장한다.
+  원격 백엔드 사용 계획 없음.
 - **공용 서비스 (초안)**: `TimeCalcService` (오프셋→보정시각 계산),
   `ExportService` (CSV/텍스트 내보내기), `LocalStore` (JSON 지속화) 후보.
 

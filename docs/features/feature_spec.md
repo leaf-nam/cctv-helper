@@ -41,12 +41,14 @@
 ## 4. 사건별 CCTV 관리 (#4, 1.0.0 구현됨)
 
 - **요구**: 사건별로 CCTV를 추가·관리한다. 이름 변경·순서 변경 가능.
+  사건 목록도 순서 변경·등록일자 표시·지우기 버튼 제공. 모두 로컬 저장.
 - **구현 상태**: 구현됨.
 - **관련 코드**:
-  - 모델: `CaseFile` + `CctvSource.sortOrder`.
+  - 모델: `CaseFile` + `CctvSource.sortOrder` (+`CaseFile.sortOrder`).
   - 화면: `CasesScreen` (`/`), `CaseDetailScreen` (`/case/:id`,
     `ReorderableListView` + `onReorderItem`).
   - 상태: `CasesProvider`, `SourcesProvider`.
+  - 저장: `LocalStore` (`SharedPreferences` + JSON, 변경마다 저장·시작 시 복원).
 
 ## 5. 사건별 검색 (#5, 미구현)
 
