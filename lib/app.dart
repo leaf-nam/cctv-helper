@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'core/services/local_store.dart';
+import 'core/theme/app_theme.dart';
 import 'features/cases/providers/cases_provider.dart';
 import 'features/events/providers/events_provider.dart';
 import 'features/sources/providers/sources_provider.dart';
@@ -30,6 +31,8 @@ class AppShell extends StatelessWidget {
       ],
       child: MaterialApp.router(
         title: 'cctv-helper',
+        theme: AppTheme.light,
+        darkTheme: AppTheme.dark,
         debugShowCheckedModeBanner: false,
         routerConfig: appRouter,
       ),
