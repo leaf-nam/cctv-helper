@@ -33,6 +33,7 @@ class AppShell extends StatelessWidget {
         title: 'cctv-helper',
         theme: AppTheme.light,
         darkTheme: AppTheme.dark,
+        debugShowCheckedModeBanner: false,
         routerConfig: appRouter,
       ),
     );
