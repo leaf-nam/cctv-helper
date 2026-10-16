@@ -30,6 +30,7 @@ class AppShell extends StatelessWidget {
       ],
       child: MaterialApp.router(
         title: 'cctv-helper',
+        debugShowCheckedModeBanner: false,
         routerConfig: appRouter,
       ),
     );
