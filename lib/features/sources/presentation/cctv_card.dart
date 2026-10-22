@@ -10,68 +10,115 @@ import '../../events/providers/events_provider.dart';
 import '../../sources/domain/cctv_source.dart';
 import 'event_sheet.dart';
 
-/// 행 내 시각 텍스트 직접 입력칸.
+/// 행 내 날짜/시간 직접 입력칸.
 ///
-/// 시트를 열지 않고 값에 바로 타이핑하면 파싱 가능한 순간 즉시 반영한다.
-/// 포커스 중에는 외부 값 동기화를 건드리지 않아 타이핑이 끊기지 않는다.
-class _InlineTimeText extends StatefulWidget {
+/// 날짜(`yyyy-MM-dd`)와 시간(`HH:mm:ss`)을 두 줄로 나눠 표시하고,
+/// 두 값이 모두 유효한 순간 즉시 반영한다. 포커스 중에는 외부 값 동기화를
+/// 건드리지 않아 타이핑이 끊기지 않는다.
+class _InlineDateTimeText extends StatefulWidget {
   final DateTime? value;
   final Future<void> Function(DateTime value) onChanged;
 
-  const _InlineTimeText({required this.value, required this.onChanged});
+  const _InlineDateTimeText({required this.value, required this.onChanged});
 
   @override
-  State<_InlineTimeText> createState() => _InlineTimeTextState();
+  State<_InlineDateTimeText> createState() => _InlineDateTimeTextState();
 }
 
-class _InlineTimeTextState extends State<_InlineTimeText> {
-  late final TextEditingController _controller;
-  late final FocusNode _focus;
+class _InlineDateTimeTextState extends State<_InlineDateTimeText> {
+  late final TextEditingController _dateController;
+  late final TextEditingController _timeController;
+  final FocusNode _dateFocus = FocusNode();
+  final FocusNode _timeFocus = FocusNode();
 
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: formatDateTime(widget.value));
-    _focus = FocusNode();
+    _dateController = TextEditingController();
+    _timeController = TextEditingController();
+    _syncControllers();
   }
 
   @override
-  void didUpdateWidget(covariant _InlineTimeText oldWidget) {
+  void didUpdateWidget(covariant _InlineDateTimeText oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // 타이핑 중(포커스 있음)에는 손대지 않는다.
-    if (_focus.hasFocus) return;
-    final formatted = formatDateTime(widget.value);
-    if (_controller.text != formatted) {
-      _controller.text = formatted;
-    }
+    if (_dateFocus.hasFocus || _timeFocus.hasFocus) return;
+    _syncControllers();
+  }
+
+  void _syncControllers() {
+    final date = widget.value == null ? '' : formatDate(widget.value);
+    final time = widget.value == null ? '' : formatTime(widget.value);
+    if (_dateController.text != date) _dateController.text = date;
+    if (_timeController.text != time) _timeController.text = time;
   }
 
   @override
   void dispose() {
-    _controller.dispose();
-    _focus.dispose();
+    _dateController.dispose();
+    _timeController.dispose();
+    _dateFocus.dispose();
+    _timeFocus.dispose();
     super.dispose();
   }
 
-  Future<void> _applyLive(String text) async {
-    final parsed = DateTime.tryParse(text.trim().replaceAll('/', '-'));
-    if (parsed == null || parsed == widget.value) return;
+  Future<void> _applyLive() async {
+    final date = parseDateInput(_dateController.text);
+    final time = parseTimeInput(_timeController.text);
+    if (date == null || time == null) return;
+    final parsed = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      time.hour,
+      time.minute,
+      time.second,
+    );
+    if (parsed == widget.value) return;
     await widget.onChanged(parsed);
   }
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: _controller,
-      focusNode: _focus,
-      style: Theme.of(context).textTheme.titleMedium,
-      decoration: const InputDecoration(
-        border: InputBorder.none,
-        isDense: true,
-        contentPadding: EdgeInsets.zero,
-      ),
-      onChanged: _applyLive,
-      onSubmitted: _applyLive,
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          key: const ValueKey('inline-date'),
+          controller: _dateController,
+          focusNode: _dateFocus,
+          style: theme.textTheme.bodySmall,
+          keyboardType: TextInputType.datetime,
+          textInputAction: TextInputAction.next,
+          decoration: const InputDecoration(
+            hintText: '날짜',
+            border: InputBorder.none,
+            isDense: true,
+            contentPadding: EdgeInsets.zero,
+          ),
+          onChanged: (_) => _applyLive(),
+          onSubmitted: (_) => _applyLive(),
+        ),
+        TextField(
+          key: const ValueKey('inline-time'),
+          controller: _timeController,
+          focusNode: _timeFocus,
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+          keyboardType: TextInputType.datetime,
+          textInputAction: TextInputAction.done,
+          decoration: const InputDecoration(
+            hintText: '시간',
+            border: InputBorder.none,
+            isDense: true,
+            contentPadding: EdgeInsets.zero,
+          ),
+          onChanged: (_) => _applyLive(),
+          onSubmitted: (_) => _applyLive(),
+        ),
+      ],
     );
   }
 }
@@ -123,8 +170,19 @@ class _CctvCardState extends State<CctvCard> {
         style: Theme.of(context).textTheme.bodySmall,
       );
     }
-    final corrected =
-        _checkedTime == null ? null : _source.correct(_checkedTime!);
+    final corrected = _checkedTime == null
+        ? null
+        : _source.correct(_checkedTime!);
+    final compact = MediaQuery.sizeOf(context).width < 380;
+    void openCheckedTimeSheet() {
+      showTimeEditSheet(
+        context,
+        title: '확인할 CCTV 시각',
+        initial: _checkedTime ?? _source.displayedAt ?? DateTime.now(),
+        onApply: (v) async => setState(() => _checkedTime = v),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -134,18 +192,24 @@ class _CctvCardState extends State<CctvCard> {
             const SizedBox(width: 4),
             Text('시간 확인', style: Theme.of(context).textTheme.titleSmall),
             const Spacer(),
-            TextButton.icon(
-              icon: const Icon(Icons.edit_calendar),
-              label: const Text('CCTV 시각 입력'),
-              onPressed: () => showTimeEditSheet(
-                context,
-                title: '확인할 CCTV 시각',
-                initial: _checkedTime ??
-                    _source.displayedAt ??
-                    DateTime.now(),
-                onChanged: (v) async => setState(() => _checkedTime = v),
+            if (compact)
+              IconButton(
+                icon: const Icon(Icons.edit_calendar),
+                tooltip: 'CCTV 시각 입력',
+                onPressed: openCheckedTimeSheet,
+              )
+            else
+              TextButton.icon(
+                icon: const Icon(Icons.edit_calendar),
+                label: const Text('CCTV 시각 입력'),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  minimumSize: const Size(0, 36),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  textStyle: const TextStyle(fontSize: 12),
+                ),
+                onPressed: openCheckedTimeSheet,
               ),
-            ),
           ],
         ),
         if (_checkedTime == null)
@@ -190,13 +254,27 @@ class _CctvCardState extends State<CctvCard> {
               Text(label, style: Theme.of(context).textTheme.labelMedium),
               const SizedBox(height: 2),
               if (onChanged == null)
-                Text(
-                  formatDateTime(value),
-                  style: Theme.of(context).textTheme.titleMedium,
-                )
+                _twoLineDisplay(value)
               else
-                _InlineTimeText(value: value, onChanged: onChanged),
+                _InlineDateTimeText(value: value, onChanged: onChanged),
             ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 날짜/시간을 두 줄로 표시한다. 시간은 초까지 고정폭 숫자로 보여 준다.
+  Widget _twoLineDisplay(DateTime? value) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(formatDate(value), style: theme.textTheme.bodySmall),
+        Text(
+          formatTime(value),
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontFeatures: const [FontFeature.tabularFigures()],
           ),
         ),
       ],
@@ -214,8 +292,7 @@ class _CctvCardState extends State<CctvCard> {
             controller: controller,
             autofocus: true,
             decoration: const InputDecoration(labelText: '이름'),
-            onSubmitted: (_) =>
-                Navigator.of(context).pop(controller.text),
+            onSubmitted: (_) => Navigator.of(context).pop(controller.text),
           ),
           actions: [
             TextButton(
@@ -245,9 +322,10 @@ class _CctvCardState extends State<CctvCard> {
     await showTimeEditSheet(
       context,
       title: displayed ? 'CCTV 시각 입력' : '실제 시각 입력',
-      initial: (displayed ? _source.displayedAt : _source.actualAt) ??
+      initial:
+          (displayed ? _source.displayedAt : _source.actualAt) ??
           DateTime.now(),
-      onChanged: (value) async {
+      onApply: (value) async {
         if (displayed) {
           await widget.onUpdateTimes(_source.id, displayedAt: () => value);
         } else {
@@ -258,10 +336,7 @@ class _CctvCardState extends State<CctvCard> {
   }
 
   /// [지금] 즉시 반영. 포커스를 먼저 풀어 행 입력칸 표시를 동기화한다.
-  Future<void> _setNow(
-    BuildContext context, {
-    required bool displayed,
-  }) async {
+  Future<void> _setNow(BuildContext context, {required bool displayed}) async {
     FocusManager.instance.primaryFocus?.unfocus();
     final now = DateTime.now();
     if (displayed) {
@@ -281,6 +356,7 @@ class _CctvCardState extends State<CctvCard> {
     required DateTime? value,
     required bool displayed,
   }) {
+    final compact = MediaQuery.sizeOf(context).width < 380;
     return Row(
       children: [
         Icon(icon, color: Theme.of(context).colorScheme.primary),
@@ -291,7 +367,7 @@ class _CctvCardState extends State<CctvCard> {
             children: [
               Text(label, style: Theme.of(context).textTheme.labelMedium),
               const SizedBox(height: 2),
-              _InlineTimeText(
+              _InlineDateTimeText(
                 value: value,
                 onChanged: (v) async {
                   if (displayed) {
@@ -300,26 +376,48 @@ class _CctvCardState extends State<CctvCard> {
                       displayedAt: () => v,
                     );
                   } else {
-                    await widget.onUpdateTimes(
-                      _source.id,
-                      actualAt: () => v,
-                    );
+                    await widget.onUpdateTimes(_source.id, actualAt: () => v);
                   }
                 },
               ),
             ],
           ),
         ),
-        TextButton.icon(
-          icon: const Icon(Icons.edit_calendar),
-          label: const Text('입력'),
-          onPressed: () => _editTime(context, displayed: displayed),
-        ),
-        TextButton.icon(
-          icon: const Icon(Icons.access_time),
-          label: const Text('지금'),
-          onPressed: () => _setNow(context, displayed: displayed),
-        ),
+        if (compact) ...[
+          IconButton(
+            icon: const Icon(Icons.edit_calendar),
+            tooltip: '입력',
+            onPressed: () => _editTime(context, displayed: displayed),
+          ),
+          IconButton(
+            icon: const Icon(Icons.access_time),
+            tooltip: '지금',
+            onPressed: () => _setNow(context, displayed: displayed),
+          ),
+        ] else ...[
+          TextButton.icon(
+            icon: const Icon(Icons.edit_calendar),
+            label: const Text('입력'),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              minimumSize: const Size(0, 36),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              textStyle: const TextStyle(fontSize: 12),
+            ),
+            onPressed: () => _editTime(context, displayed: displayed),
+          ),
+          TextButton.icon(
+            icon: const Icon(Icons.access_time),
+            label: const Text('지금'),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              minimumSize: const Size(0, 36),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              textStyle: const TextStyle(fontSize: 12),
+            ),
+            onPressed: () => _setNow(context, displayed: displayed),
+          ),
+        ],
       ],
     );
   }
@@ -331,9 +429,7 @@ class _CctvCardState extends State<CctvCard> {
     final ready = offset != null;
     // 기록 추가 시 쓸 시각: 시간 확인칸의 조회 시간 우선, 없으면 기준 CCTV 시각.
     final recordTime = _checkedTime ?? _source.displayedAt ?? DateTime.now();
-    final events = context
-        .watch<EventsProvider>()
-        .bySource(_source.id);
+    final events = context.watch<EventsProvider>().bySource(_source.id);
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       child: Padding(
@@ -394,10 +490,7 @@ class _CctvCardState extends State<CctvCard> {
                         color: Theme.of(context).colorScheme.primary,
                       ),
                       const SizedBox(width: 4),
-                      Text(
-                        '기준',
-                        style: Theme.of(context).textTheme.labelSmall,
-                      ),
+                      Text('기준', style: Theme.of(context).textTheme.labelSmall),
                     ],
                   ),
                   const SizedBox(height: 4),
@@ -495,30 +588,31 @@ class _CctvCardState extends State<CctvCard> {
                                     leading: e.photoPath.isEmpty
                                         ? null
                                         : ClipRRect(
-                                            borderRadius:
-                                                BorderRadius.circular(6),
+                                            borderRadius: BorderRadius.circular(
+                                              6,
+                                            ),
                                             child: Image.file(
                                               File(e.photoPath),
                                               width: 48,
                                               height: 48,
                                               fit: BoxFit.cover,
-                                              errorBuilder:
-                                                  (context, _, __) =>
-                                                      const Icon(
-                                                Icons.broken_image,
-                                              ),
+                                              errorBuilder: (context, _, __) =>
+                                                  const Icon(
+                                                    Icons.broken_image,
+                                                  ),
                                             ),
                                           ),
                                     title: Text(
                                       e.memo.isEmpty ? '(메모 없음)' : e.memo,
                                     ),
                                     subtitle: Text(
-                                      'CCTV ${formatDateTime(e.displayedAt)}\n'
-                                      '실제 ${formatDateTime(e.correctedAt)}',
+                                      'CCTV ${formatDate(e.displayedAt)} '
+                                      '${formatTime(e.displayedAt)}\n'
+                                      '실제 ${formatDate(e.correctedAt)} '
+                                      '${formatTime(e.correctedAt)}',
                                     ),
                                     trailing: IconButton(
-                                      icon: const Icon(
-                                          Icons.delete_outline),
+                                      icon: const Icon(Icons.delete_outline),
                                       onPressed: () => context
                                           .read<EventsProvider>()
                                           .removeEvent(e.id),

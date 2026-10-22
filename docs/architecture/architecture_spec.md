@@ -12,18 +12,20 @@
 `malssi`와 동일한 feature-based 디렉토리 구조를 사용합니다.
 
 - **진입점 (1.0.0 확정)**: `lib/main.dart`의 `main()`이 `AppShell` 실행.
-- **앱 셸 (1.0.0 확정)**: `lib/app.dart`의 `AppShell`(`StatelessWidget`)이 `MultiProvider`
-  (`CasesProvider` + `SourcesProvider` + `EventsProvider`)로 감싼
-  `MaterialApp.router`를 제공합니다.
-- **라우팅 (1.0.0 확정)**: `lib/routing/app_router.dart`의 `appRouter`(`GoRouter`, `initialLocation: '/'`).
-  라우트: `/` (`CasesScreen`, 사건 목록), `/case/:id` (`CaseDetailScreen`, CCTV 관리).
+- **앱 셸 (1.0.1 확정)**: `lib/app.dart`의 `AppShell`(`StatelessWidget`)이 `MultiProvider`
+  (`CasesProvider` + `SourcesProvider` + `EventsProvider` + `TutorialProvider`)로 감싼
+  `MaterialApp.router`를 제공합니다. `flutter_localizations`의 `ko` 로케일을 고정합니다.
+- **라우팅 (1.0.1 확정)**: `lib/routing/app_router.dart`의 `appRouter`(`GoRouter`, `initialLocation: '/'`).
+  라우트: `/` (`CasesScreen`, 사건 목록), `/case/:id` (`CaseDetailScreen`, CCTV 관리),
+  `/onboarding` (`TutorialScreen`, 첫 실행/다시 보기 튜토리얼).
   `/sources`·`/events`·`/settings` 분리 라우트는 폐기 — CCTV·기록은 사건 상세 내 카드로 통합.
 - **상태 관리**: `provider` + `ChangeNotifier` + `context.watch`/`context.read` 단일 패턴
   (`malssi`와 동일. `riverpod` 도입 금지).
 - **데이터 계층 (초안)**: feature별 `*_repository.dart` 추상 클래스 + `InMemory*` 구현체.
-- **저장 계층 (1.0.0 확정)**: 로컬 저장(`SharedPreferences` + JSON, `LocalStore`,
+- **저장 계층 (1.0.1 확정)**: 로컬 저장(`SharedPreferences` + JSON, `LocalStore`,
   `core/services/local_store.dart`). 사건·CCTV·기록을 `StoreKeys` 키로 저장하고,
   각 Provider가 변경마다 저장·`main()` 시작 시 1회 복원한다.
+  단일 bool 설정(예: `tutorialSeen`)은 `LocalStore.getBool`/`setBool`을 사용한다.
   영상 바이너리는 저장하지 않고 메타·오프셋·메모·사진 경로만 저장한다.
   원격 백엔드 사용 계획 없음.
 - **공용 서비스 (초안)**: `TimeCalcService` (오프셋→보정시각 계산),
@@ -74,7 +76,7 @@ lib/
 ```
 
 - 새 기능은 `features/<feature>/{data,domain,presentation,providers}` 4계층으로 추가합니다.
-  1.0.0 feature명: `cases`, `sources`, `events`.
+  1.0.1 feature명: `cases`, `sources`, `events`, `onboarding`.
 - 공용 코드는 `core/{constants,services,theme,widgets}`에 둡니다.
 - 라우트는 `lib/routing/app_router.dart`의 `GoRoute`에 등록합니다.
 
@@ -83,6 +85,7 @@ lib/
 | 패키지 | 버전 | 용도 | 비고 |
 |--------|------|------|------|
 | `flutter` | SDK | 프레임워크 | `uses-material-design: true` |
+| `flutter_localizations` | SDK | 한국어 날짜/시간 피커 | 1.0.1, `ko` 로케일 |
 | `provider` | `^6.0.0` | 상태 관리 (주) | `AppShell` MultiProvider, 화면 watch/read |
 | `go_router` | `^13.2.0` | 라우팅 | `appRouter` |
 | `shared_preferences` | `^2.5.5` | 로컬 지속화 | `LocalStore` 후보 |

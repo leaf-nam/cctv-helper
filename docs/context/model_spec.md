@@ -11,7 +11,7 @@
 `fromMap` / `toMap` / `copyWith` 삼중 구조를 따릅니다 (`malssi` 패턴 계승).
 모든 모델은 불변(immutable)이며 `final` 필드 + `const` 생성자를 사용합니다.
 
-## 2. 저장 키 상수 (1.0.0 확정)
+## 2. 저장 키 상수 (1.0.1 확정)
 
 `lib/core/constants/store_keys.dart`에 정의된 상수를 **반드시** 사용하십시오.
 문자열 하드코딩 금지.
@@ -22,8 +22,14 @@ class StoreKeys {
   static const sources = 'sources';
   static const events = 'events';
   static const settings = 'settings';
+
+  /// 첫 실행 튜토리얼을 이미 봤는지 여부(bool).
+  static const tutorialSeen = 'tutorialSeen';
 }
 ```
+
+> `tutorialSeen`은 도메인 모델이 아니라 `LocalStore`의 단일 bool 설정입니다.
+> `fromMap`/`toMap` 직렬화 대상이 아니며 `getBool`/`setBool`로 읽고 씁니다.
 
 ## 3. 직렬화 공통 규칙
 
