@@ -78,6 +78,8 @@ lib/
 - 새 기능은 `features/<feature>/{data,domain,presentation,providers}` 4계층으로 추가합니다.
   1.0.1 feature명: `cases`, `sources`, `events`, `onboarding`.
 - 공용 코드는 `core/{constants,services,theme,widgets}`에 둡니다.
+- 정적 자산은 `assets/`에 둡니다. `assets/images/`는 로고, `assets/tutorial/`은
+  튜토리얼 4단계의 실제 앱 화면 예시 PNG(390dp 폭 기준)이며 `pubspec.yaml`에 등록합니다.
 - 라우트는 `lib/routing/app_router.dart`의 `GoRoute`에 등록합니다.
 
 ### 1.3 의존성 관리 (`pubspec.yaml`, 초안)

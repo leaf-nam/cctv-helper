@@ -26,6 +26,8 @@
     `yyyy년 MM월 dd일`을 지원하고 2월 30일 등 존재하지 않는 날짜를 거부.
   - `flutter_localizations` + `ko` 로케일로 날짜 선택기 입력 형식·라벨을 한국어화.
   - 연도 선택 단계에서 12개월 그리드를 함께 보여 줘 월 이동을 바로 선택.
+    좁은 화면에서도 `10월`이 줄바꿈되지 않도록 한 줄 고정 + `FittedBox` 축소.
+  - 시각 입력 필드의 `년/월/일/시/분/초` 접미사를 필드 내부(`suffixText`)에 배치해 잘림 방지.
   - 바텀시트 `useSafeArea`와 키보드 인셋으로 Android 내비게이션 바/홈 인디케이터 겹침 방지.
 
 ## 2. 오차 계산 (#2, 1.0.0 구현됨)
@@ -48,6 +50,7 @@
   - 저장소: `TimelineEventRepository` (사건별 보정시각 정렬).
   - 화면: `showEventSheet()` (카메라 촬영·앨범 선택 + 썸네일 미리보기, `image_picker`).
     영상 시각은 날짜/시간 2줄로 표시하고, 시각 입력 시트는 적용/닫기로 확정한다.
+  - 기록 목록의 `CCTV`/`실제` 라벨은 고정폭으로, 시각은 같은 시작점에서 표시한다.
 - **향후 과제**: 사진 원본 보관 위치·동기화 정책.
 
 ## 4. 사건별 CCTV 관리 (#4, 1.0.0 구현됨)
@@ -87,6 +90,7 @@
 - **동작**:
   - 첫 실행(`tutorialSeen=false`)이면 사건 목록 진입 후 `/onboarding`으로 이동.
   - ① 사건 만들기 ② 실제시간/CCTV 시간 입력 ③ 오차 확인 ④ 기록·타임라인.
+  - 각 단계에 실제 앱 화면 예시 이미지 4장(`assets/tutorial/`)을 함께 표시.
   - `다음`/`이전`/`건너뛰기`/`시작하기`, 페이지 인디케이터.
   - `건너뛰기` 또는 마지막 `시작하기`에서 `tutorialSeen=true` 저장.
   - 사건 목록 앱바의 도움말 버튼으로 `튜토리얼 다시 보기`.
@@ -95,6 +99,7 @@
   - `lib/features/onboarding/presentation/tutorial_screen.dart`
   - `lib/routing/app_router.dart` (`/onboarding`)
   - `lib/core/constants/store_keys.dart` (`tutorialSeen`)
+  - `assets/tutorial/01-cases.png` … `04-records.png` (`pubspec.yaml` assets)
 
 ## 9. 기능-코드 매핑표
 

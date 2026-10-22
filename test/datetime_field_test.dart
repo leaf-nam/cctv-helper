@@ -87,6 +87,40 @@ void main() {
     expect(formatDateTime(null), '미입력');
   });
 
+  testWidgets('좁은 화면에서 월 버튼이 한 줄로 표시', (tester) async {
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: Center(
+              child: ElevatedButton(
+                onPressed: () => showYearMonthPicker(
+                  context,
+                  initial: DateTime(2026, 5, 10),
+                ),
+                child: const Text('열기'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('열기'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    final october = tester.widget<Text>(find.text('10월'));
+    expect(october.maxLines, 1);
+    expect(october.softWrap, isFalse);
+  });
+
   testWidgets('연도·월 선택 다이얼로그에서 월을 바로 선택', (tester) async {
     DateTime? result;
     await tester.pumpWidget(

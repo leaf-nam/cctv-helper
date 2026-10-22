@@ -270,6 +270,37 @@ class _CctvCardState extends State<CctvCard> {
     );
   }
 
+  /// 기록 목록의 CCTV/실제 시각 행. 라벨 폭을 고정해 두 시각의 시작점을 맞춘다.
+  Widget _recordTimeRow(String label, DateTime value, {Key? timeKey}) {
+    final theme = Theme.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 42,
+          child: Text(
+            label,
+            maxLines: 1,
+            softWrap: false,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            '${formatDate(value)} ${formatTime(value)}',
+            key: timeKey,
+            maxLines: 1,
+            softWrap: false,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall,
+          ),
+        ),
+      ],
+    );
+  }
+
   /// 날짜/시간을 두 줄로 표시한다. 시간은 초까지 고정폭 숫자로 보여 준다.
   Widget _twoLineDisplay(DateTime? value) {
     final theme = Theme.of(context);
@@ -590,6 +621,7 @@ class _CctvCardState extends State<CctvCard> {
                                 ...events.map(
                                   (e) => ListTile(
                                     dense: true,
+                                    isThreeLine: true,
                                     contentPadding: EdgeInsets.zero,
                                     leading: e.photoPath.isEmpty
                                         ? null
@@ -611,11 +643,25 @@ class _CctvCardState extends State<CctvCard> {
                                     title: Text(
                                       e.memo.isEmpty ? '(메모 없음)' : e.memo,
                                     ),
-                                    subtitle: Text(
-                                      'CCTV ${formatDate(e.displayedAt)} '
-                                      '${formatTime(e.displayedAt)}\n'
-                                      '실제 ${formatDate(e.correctedAt)} '
-                                      '${formatTime(e.correctedAt)}',
+                                    subtitle: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        _recordTimeRow(
+                                          'CCTV',
+                                          e.displayedAt,
+                                          timeKey: ValueKey(
+                                            'record-cctv-${e.id}',
+                                          ),
+                                        ),
+                                        _recordTimeRow(
+                                          '실제',
+                                          e.correctedAt,
+                                          timeKey: ValueKey(
+                                            'record-actual-${e.id}',
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                     trailing: IconButton(
                                       icon: const Icon(Icons.delete_outline),

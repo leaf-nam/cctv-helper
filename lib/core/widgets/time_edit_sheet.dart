@@ -219,35 +219,27 @@ class _TimeEditSheetBodyState extends State<_TimeEditSheetBody> {
   Widget _numField(int index, String suffix, {int flex = 2}) {
     return Expanded(
       flex: flex,
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              key: ValueKey('time-part-$index'),
-              controller: _parts[index],
-              textAlign: TextAlign.center,
-              keyboardType: TextInputType.number,
-              textInputAction: index == 5
-                  ? TextInputAction.done
-                  : TextInputAction.next,
-              style: const TextStyle(fontSize: 15),
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(index == 0 ? 4 : 2),
-              ],
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                isDense: true,
-                contentPadding: EdgeInsets.symmetric(vertical: 8),
-              ),
-              onChanged: (_) => _onPartChanged(),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 2),
-            child: Text(suffix, style: Theme.of(context).textTheme.labelSmall),
-          ),
+      child: TextField(
+        key: ValueKey('time-part-$index'),
+        controller: _parts[index],
+        textAlign: TextAlign.center,
+        keyboardType: TextInputType.number,
+        textInputAction: index == 5
+            ? TextInputAction.done
+            : TextInputAction.next,
+        style: const TextStyle(fontSize: 15),
+        inputFormatters: [
+          FilteringTextInputFormatter.digitsOnly,
+          LengthLimitingTextInputFormatter(index == 0 ? 4 : 2),
         ],
+        decoration: InputDecoration(
+          border: const OutlineInputBorder(),
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(vertical: 8),
+          suffixText: suffix,
+          suffixStyle: Theme.of(context).textTheme.labelSmall,
+        ),
+        onChanged: (_) => _onPartChanged(),
       ),
     );
   }

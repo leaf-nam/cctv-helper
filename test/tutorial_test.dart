@@ -15,6 +15,13 @@ void main() {
 
     expect(find.text('사용 방법'), findsOneWidget);
     expect(find.text('1. 사건을 만드세요'), findsOneWidget);
+    expect(find.byKey(const ValueKey('tutorial-image-0')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('tutorial-next')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('2. 두 시각을 입력하세요'), findsOneWidget);
+    expect(find.byKey(const ValueKey('tutorial-image-1')), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('tutorial-skip')));
     await tester.pumpAndSettle();

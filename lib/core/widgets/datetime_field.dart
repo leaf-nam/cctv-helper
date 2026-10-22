@@ -106,25 +106,18 @@ Future<DateTime?> showYearMonthPicker(
               child: GridView.count(
                 shrinkWrap: true,
                 crossAxisCount: 3,
-                childAspectRatio: 2.2,
-                mainAxisSpacing: 8,
-                crossAxisSpacing: 8,
+                childAspectRatio: 2.0,
+                mainAxisSpacing: 6,
+                crossAxisSpacing: 6,
                 children: [
                   for (var month = 1; month <= 12; month++)
-                    if (initial.year == year && initial.month == month)
-                      FilledButton(
-                        onPressed: () =>
-                            Navigator.of(dialogContext)
-                                .pop(DateTime(year, month)),
-                        child: Text('$month월'),
-                      )
-                    else
-                      OutlinedButton(
-                        onPressed: () =>
-                            Navigator.of(dialogContext)
-                                .pop(DateTime(year, month)),
-                        child: Text('$month월'),
-                      ),
+                    _MonthButton(
+                      month: month,
+                      selected: initial.year == year && initial.month == month,
+                      onPressed: () =>
+                          Navigator.of(dialogContext)
+                              .pop(DateTime(year, month)),
+                    ),
                 ],
               ),
             ),
@@ -139,6 +132,45 @@ Future<DateTime?> showYearMonthPicker(
       );
     },
   );
+}
+
+/// 연도·월 선택 다이얼로그의 월 버튼.
+///
+/// 좁은 화면에서 `10월`이 `10\n월`로 줄바꿈되지 않도록 한 줄 고정 +
+/// FittedBox로 축소한다.
+class _MonthButton extends StatelessWidget {
+  final int month;
+  final bool selected;
+  final VoidCallback onPressed;
+
+  const _MonthButton({
+    required this.month,
+    required this.selected,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final child = FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text(
+        '$month월',
+        maxLines: 1,
+        softWrap: false,
+        style: const TextStyle(fontSize: 13),
+      ),
+    );
+    final style = ButtonStyle(
+      padding: const WidgetStatePropertyAll(EdgeInsets.zero),
+      minimumSize: const WidgetStatePropertyAll(Size(0, 36)),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: VisualDensity.compact,
+    );
+    if (selected) {
+      return FilledButton(style: style, onPressed: onPressed, child: child);
+    }
+    return OutlinedButton(style: style, onPressed: onPressed, child: child);
+  }
 }
 
 /// `yyyy-MM-dd` 표시. 값이 없으면 `미입력`.

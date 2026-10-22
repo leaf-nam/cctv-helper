@@ -18,34 +18,39 @@ class TutorialScreen extends StatefulWidget {
 }
 
 class _TutorialScreenState extends State<TutorialScreen> {
-  static const _pages = <({IconData icon, String title, String body})>[
-    (
-      icon: Icons.folder_open,
-      title: '1. 사건을 만드세요',
-      body: '수사 사건을 먼저 만들고, 그 안에 확인할 CCTV를 추가합니다.',
-    ),
-    (
-      icon: Icons.videocam,
-      title: '2. 두 시각을 입력하세요',
-      body:
-          'CCTV 화면에 표시된 시각과 같은 순간의 실제시간을 입력하면 '
-          '오차를 자동으로 계산합니다.',
-    ),
-    (
-      icon: Icons.compare_arrows,
-      title: '3. 시간을 확인하세요',
-      body:
-          '녹화장면의 CCTV 시각을 입력하면 보정된 실제시간을 바로 '
-          '확인할 수 있습니다.',
-    ),
-    (
-      icon: Icons.timeline,
-      title: '4. 기록으로 남기세요',
-      body:
-          '사진과 메모를 남기면 보정된 실제시간 순서로 정리됩니다. '
-          '사건별로 다시 확인할 수 있습니다.',
-    ),
-  ];
+  static const _pages =
+      <({IconData icon, String title, String body, String image})>[
+        (
+          icon: Icons.folder_open,
+          title: '1. 사건을 만드세요',
+          body: '수사 사건을 먼저 만들고, 그 안에 확인할 CCTV를 추가합니다.',
+          image: 'assets/tutorial/01-cases.png',
+        ),
+        (
+          icon: Icons.videocam,
+          title: '2. 두 시각을 입력하세요',
+          body:
+              'CCTV 화면에 표시된 시각과 같은 순간의 실제시간을 입력하면 '
+              '오차를 자동으로 계산합니다.',
+          image: 'assets/tutorial/02-time-sheet.png',
+        ),
+        (
+          icon: Icons.compare_arrows,
+          title: '3. 시간을 확인하세요',
+          body:
+              '녹화장면의 CCTV 시각을 입력하면 보정된 실제시간을 바로 '
+              '확인할 수 있습니다.',
+          image: 'assets/tutorial/03-time-result.png',
+        ),
+        (
+          icon: Icons.timeline,
+          title: '4. 기록으로 남기세요',
+          body:
+              '사진과 메모를 남기면 보정된 실제시간 순서로 정리됩니다. '
+              '사건별로 다시 확인할 수 있습니다.',
+          image: 'assets/tutorial/04-records.png',
+        ),
+      ];
 
   final PageController _controller = PageController();
   int _index = 0;
@@ -108,33 +113,78 @@ class _TutorialScreenState extends State<TutorialScreen> {
                 itemBuilder: (context, index) {
                   final page = _pages[index];
                   return SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(24, 32, 24, 16),
+                    padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
                     child: Column(
                       children: [
                         Container(
-                          width: 96,
-                          height: 96,
+                          width: 64,
+                          height: 64,
                           decoration: BoxDecoration(
                             color: theme.colorScheme.primaryContainer,
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
                             page.icon,
-                            size: 48,
+                            size: 32,
                             color: theme.colorScheme.onPrimaryContainer,
                           ),
                         ),
-                        const SizedBox(height: 28),
+                        const SizedBox(height: 16),
                         Text(
                           page.title,
                           textAlign: TextAlign.center,
                           style: theme.textTheme.headlineSmall,
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 8),
                         Text(
                           page.body,
                           textAlign: TextAlign.center,
                           style: theme.textTheme.bodyLarge,
+                        ),
+                        const SizedBox(height: 18),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 340),
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(
+                                color: theme.colorScheme.outlineVariant,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: theme.colorScheme.shadow.withValues(
+                                    alpha: 0.12,
+                                  ),
+                                  blurRadius: 16,
+                                  offset: const Offset(0, 6),
+                                ),
+                              ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(17),
+                              child: Image.asset(
+                                page.image,
+                                key: ValueKey('tutorial-image-$index'),
+                                width: double.infinity,
+                                fit: BoxFit.fitWidth,
+                                filterQuality: FilterQuality.high,
+                                errorBuilder: (context, _, __) => Container(
+                                  height: 160,
+                                  alignment: Alignment.center,
+                                  color:
+                                      theme.colorScheme.surfaceContainerHighest,
+                                  child: const Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.image_not_supported),
+                                      SizedBox(height: 8),
+                                      Text('화면 예시를 불러오지 못했습니다.'),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
                       ],
                     ),

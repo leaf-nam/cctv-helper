@@ -205,6 +205,35 @@ void main() {
     expect(find.text('시간 확인'), findsOneWidget);
   });
 
+  testWidgets('기록 목록에서 CCTV/실제 시간 시작점 정렬', (tester) async {
+    final setup = await pumpCase(
+      tester,
+      displayedAt: DateTime(2026, 10, 8, 14, 0, 0),
+      actualAt: DateTime(2026, 10, 8, 14, 2, 0),
+    );
+    final source = setup.sources.byCase(setup.caseId).first;
+    await setup.events.addEvent(
+      caseId: setup.caseId,
+      source: source,
+      displayedAt: DateTime(2026, 10, 8, 14, 0, 0),
+      memo: '차량 통과',
+    );
+    await setup.events.addEvent(
+      caseId: setup.caseId,
+      source: source,
+      displayedAt: DateTime(2026, 10, 8, 15, 0, 0),
+      memo: '인물 통과',
+    );
+    await tester.pumpAndSettle();
+
+    final eventId = setup.events.byCase(setup.caseId).first.id;
+    final cctv = find.byKey(ValueKey('record-cctv-$eventId'));
+    final actual = find.byKey(ValueKey('record-actual-$eventId'));
+    expect(cctv, findsOneWidget);
+    expect(actual, findsOneWidget);
+    expect(tester.getTopLeft(cctv).dx, tester.getTopLeft(actual).dx);
+  });
+
   testWidgets('작은 화면·큰 글꼴에서도 시각 2줄 표시가 넘치지 않음', (tester) async {
     await pumpCase(
       tester,
