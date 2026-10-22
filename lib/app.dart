@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
 import 'core/services/local_store.dart';
 import 'core/theme/app_theme.dart';
 import 'features/cases/providers/cases_provider.dart';
 import 'features/events/providers/events_provider.dart';
+import 'features/onboarding/providers/tutorial_provider.dart';
 import 'features/sources/providers/sources_provider.dart';
 import 'routing/app_router.dart';
 
@@ -28,12 +30,16 @@ class AppShell extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) => EventsProvider(null, store)..load(),
         ),
+        ChangeNotifierProvider(create: (_) => TutorialProvider(store)..load()),
       ],
       child: MaterialApp.router(
         title: 'cctv-helper',
         theme: AppTheme.light,
         darkTheme: AppTheme.dark,
         debugShowCheckedModeBanner: false,
+        locale: const Locale('ko'),
+        supportedLocales: const [Locale('ko'), Locale('en')],
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
         routerConfig: appRouter,
       ),
     );

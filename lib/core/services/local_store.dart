@@ -19,13 +19,26 @@ class LocalStore {
     await _prefs.setString(key, jsonEncode(docs));
   }
 
+  /// 단일 bool 설정 읽기. 없으면 [fallback].
+  bool getBool(String key, {bool fallback = false}) {
+    return _prefs.getBool(key) ?? fallback;
+  }
+
+  /// 단일 bool 설정 저장.
+  Future<void> setBool(String key, bool value) async {
+    await _prefs.setBool(key, value);
+  }
+
   /// 키별 문서 목록 읽기. 없거나 깨졌으면 빈 목록.
   List<Map<String, dynamic>> loadAll(String key) {
     final raw = _prefs.getString(key);
     if (raw == null || raw.isEmpty) return [];
     try {
       final decoded = jsonDecode(raw) as List;
-      return decoded.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+      return decoded
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
     } catch (_) {
       return [];
     }

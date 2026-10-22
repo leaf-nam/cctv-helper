@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/widgets/datetime_field.dart';
+import '../../onboarding/providers/tutorial_provider.dart';
 import '../providers/cases_provider.dart';
 
 /// 사건 목록 화면 (`/`, #4).
@@ -16,6 +17,19 @@ class CasesScreen extends StatefulWidget {
 
 class _CasesScreenState extends State<CasesScreen> {
   final _titleController = TextEditingController();
+  bool _tutorialChecked = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _tutorialChecked) return;
+      _tutorialChecked = true;
+      if (!context.read<TutorialProvider>().seen) {
+        context.go('/onboarding');
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -34,7 +48,8 @@ class _CasesScreenState extends State<CasesScreen> {
             controller: _titleController,
             autofocus: true,
             decoration: const InputDecoration(labelText: '사건 제목'),
-            onSubmitted: (_) => Navigator.of(context).pop(_titleController.text),
+            onSubmitted: (_) =>
+                Navigator.of(context).pop(_titleController.text),
           ),
           actions: [
             TextButton(
@@ -42,8 +57,7 @@ class _CasesScreenState extends State<CasesScreen> {
               child: const Text('취소'),
             ),
             TextButton(
-              onPressed: () =>
-                  Navigator.of(context).pop(_titleController.text),
+              onPressed: () => Navigator.of(context).pop(_titleController.text),
               child: const Text('추가'),
             ),
           ],
@@ -84,42 +98,53 @@ class _CasesScreenState extends State<CasesScreen> {
   Widget build(BuildContext context) {
     final cases = context.watch<CasesProvider>().cases;
     return Scaffold(
-      appBar: AppBar(title: const Text('사건 목록')),
-      body: cases.isEmpty
-          ? const Center(child: Text('등록된 사건이 없습니다.'))
-          : ReorderableListView.builder(
-              // 하단 FAB와 마지막 행 삭제 버튼이 겹치지 않게 여백
-              padding: const EdgeInsets.only(bottom: 96),
-              buildDefaultDragHandles: false,
-              itemCount: cases.length,
-              onReorderItem: (oldIndex, newIndex) => context
-                  .read<CasesProvider>()
-                  .reorder(oldIndex, newIndex),
-              itemBuilder: (context, index) {
-                final item = cases[index];
-                return ListTile(
-                  key: ValueKey(item.id),
-                  leading: ReorderableDragStartListener(
-                    index: index,
-                    child: const Icon(Icons.drag_handle),
-                  ),
-                  title: Text(item.title),
-                  subtitle: Text('등록 ${formatDateTime(item.createdAt)}'),
-                  onTap: () => context.go('/case/${item.id}'),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline),
-                        tooltip: '삭제',
-                        onPressed: () => _confirmRemove(item.id, item.title),
-                      ),
-                      const Icon(Icons.chevron_right),
-                    ],
-                  ),
-                );
-              },
-            ),
+      appBar: AppBar(
+        title: const Text('사건 목록'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.help_outline),
+            tooltip: '튜토리얼 다시 보기',
+            onPressed: () => context.push('/onboarding?replay=1'),
+          ),
+        ],
+      ),
+      body: SafeArea(
+        top: false,
+        child: cases.isEmpty
+            ? const Center(child: Text('등록된 사건이 없습니다.'))
+            : ReorderableListView.builder(
+                // 하단 FAB와 마지막 행 삭제 버튼이 겹치지 않게 여백
+                padding: const EdgeInsets.only(bottom: 96),
+                buildDefaultDragHandles: false,
+                itemCount: cases.length,
+                onReorderItem: (oldIndex, newIndex) =>
+                    context.read<CasesProvider>().reorder(oldIndex, newIndex),
+                itemBuilder: (context, index) {
+                  final item = cases[index];
+                  return ListTile(
+                    key: ValueKey(item.id),
+                    leading: ReorderableDragStartListener(
+                      index: index,
+                      child: const Icon(Icons.drag_handle),
+                    ),
+                    title: Text(item.title),
+                    subtitle: Text('등록 ${formatDateTime(item.createdAt)}'),
+                    onTap: () => context.go('/case/${item.id}'),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline),
+                          tooltip: '삭제',
+                          onPressed: () => _confirmRemove(item.id, item.title),
+                        ),
+                        const Icon(Icons.chevron_right),
+                      ],
+                    ),
+                  );
+                },
+              ),
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddDialog,
         child: const Icon(Icons.add),

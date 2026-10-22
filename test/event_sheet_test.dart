@@ -40,8 +40,8 @@ Future<({String caseId, EventsProvider events})> pumpReadyCase(
 }
 
 Finder memoField() => find.byWidgetPredicate(
-      (w) => w is TextField && w.decoration?.labelText == '기록 메모',
-    );
+  (w) => w is TextField && w.decoration?.labelText == '기록 메모',
+);
 
 void main() {
   testWidgets('기록 추가: 중첩 시각시트 입력 후 저장', (tester) async {
@@ -58,7 +58,8 @@ void main() {
       );
       await tester.pumpAndSettle();
     }
-    await tester.tap(find.widgetWithText(TextButton, '닫기'));
+    await tester.ensureVisible(find.byKey(const ValueKey('time-apply')));
+    await tester.tap(find.byKey(const ValueKey('time-apply')));
     await tester.pumpAndSettle();
     await tester.enterText(memoField(), '수상한 인물');
     await tester.pumpAndSettle();
@@ -77,7 +78,8 @@ void main() {
     await tester.pumpAndSettle();
     final save = find.widgetWithText(FilledButton, '저장');
     await tester.tap(save);
-    await tester.tap(save);
+    // 첫 탭으로 시트가 닫히기 시작하므로 두 번째 탭은 화면 밖일 수 있다.
+    await tester.tap(save, warnIfMissed: false);
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     expect(setup.events.byCase(setup.caseId), hasLength(1));

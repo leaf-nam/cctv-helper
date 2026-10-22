@@ -37,8 +37,7 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
             controller: _nameController,
             autofocus: true,
             decoration: const InputDecoration(labelText: 'CCTV 이름'),
-            onSubmitted: (_) =>
-                Navigator.of(context).pop(_nameController.text),
+            onSubmitted: (_) => Navigator.of(context).pop(_nameController.text),
           ),
           actions: [
             TextButton(
@@ -46,8 +45,7 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
               child: const Text('취소'),
             ),
             TextButton(
-              onPressed: () =>
-                  Navigator.of(context).pop(_nameController.text),
+              onPressed: () => Navigator.of(context).pop(_nameController.text),
               child: const Text('추가'),
             ),
           ],
@@ -77,43 +75,44 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
           onPressed: () => context.go('/'),
         ),
       ),
-      body: sources.isEmpty
-          ? const Center(child: Text('CCTV를 추가하세요.'))
-          : ReorderableListView.builder(
-              // 하단 FAB(+버튼)와 마지막 카드 삭제 버튼이 겹치지 않게 여백
-              padding: const EdgeInsets.only(bottom: 96),
-              // 기본 우측 핸들 대신 카드 맨 위 핸들 사용
-              buildDefaultDragHandles: false,
-              itemCount: sources.length,
-              onReorderItem: (oldIndex, newIndex) => context
-                  .read<SourcesProvider>()
-                  .reorder(widget.caseId, oldIndex, newIndex),
-              itemBuilder: (context, index) {
-                final source = sources[index];
-                return CctvCard(
-                  key: ValueKey(source.id),
-                  caseId: widget.caseId,
-                  source: source,
-                  index: index,
-                  onRename: (id, name) => context
-                      .read<SourcesProvider>()
-                      .renameSource(id, name),
-                  onRemove: (id) => context
-                      .read<SourcesProvider>()
-                      .removeSource(id),
-                  onUpdateTimes: (
-                    id, {
-                    DateTime? Function()? displayedAt,
-                    DateTime? Function()? actualAt,
-                  }) =>
-                      context.read<SourcesProvider>().updateTimes(
-                        id,
-                        displayedAt: displayedAt,
-                        actualAt: actualAt,
-                      ),
-                );
-              },
-            ),
+      body: SafeArea(
+        top: false,
+        child: sources.isEmpty
+            ? const Center(child: Text('CCTV를 추가하세요.'))
+            : ReorderableListView.builder(
+                // 하단 FAB(+버튼)와 마지막 카드 삭제 버튼이 겹치지 않게 여백
+                padding: const EdgeInsets.only(bottom: 96),
+                // 기본 우측 핸들 대신 카드 맨 위 핸들 사용
+                buildDefaultDragHandles: false,
+                itemCount: sources.length,
+                onReorderItem: (oldIndex, newIndex) => context
+                    .read<SourcesProvider>()
+                    .reorder(widget.caseId, oldIndex, newIndex),
+                itemBuilder: (context, index) {
+                  final source = sources[index];
+                  return CctvCard(
+                    key: ValueKey(source.id),
+                    caseId: widget.caseId,
+                    source: source,
+                    index: index,
+                    onRename: (id, name) =>
+                        context.read<SourcesProvider>().renameSource(id, name),
+                    onRemove: (id) =>
+                        context.read<SourcesProvider>().removeSource(id),
+                    onUpdateTimes:
+                        (
+                          id, {
+                          DateTime? Function()? displayedAt,
+                          DateTime? Function()? actualAt,
+                        }) => context.read<SourcesProvider>().updateTimes(
+                          id,
+                          displayedAt: displayedAt,
+                          actualAt: actualAt,
+                        ),
+                  );
+                },
+              ),
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddSource,
         child: const Icon(Icons.add),

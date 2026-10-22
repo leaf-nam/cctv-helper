@@ -5,7 +5,7 @@
 > 각 항목의 **구현 상태**는 기준 시점의 실제 코드를 기준으로 표기합니다.
 > 미구현 부분은 "미구현"으로 명시합니다 (추측 금지).
 
-## 1. CCTV 현재시간 입력 (#1, 1.0.0 구현됨)
+## 1. CCTV 현재시간 입력 (#1, 1.0.0 / UX 개선 1.0.1 구현됨)
 
 - **요구**: CCTV 영상에 표시된 시각과 실제 현재시간을 쌍으로 입력한다.
 - **구현 상태**: 구현됨.
@@ -13,9 +13,25 @@
   - 모델: `CctvSource.displayedAt`/`actualAt` (`model_spec.md` §4.2 참조).
   - 저장소: `CctvSourceRepository` (`lib/features/sources/data/`).
   - 화면: `CctvCard`의 시각 행 2개 (위 실제 / 아래 CCTV, `Divider` 분리) +
-    `showTimeEditSheet()` ([지금] + ±1시간/10분/1분 스테퍼 + 직접 선택, live-apply).
+    `showTimeEditSheet()` ([지금] + ±1일/1시간/10분/1분/10초/1초 스테퍼 + 직접 선택).
   - CCTV 추가 시 실제 시각은 현재시간으로 자동 초기화.
-  - 입력: `pickDateTime()` (날짜+시간 피커, `lib/core/widgets/datetime_field.dart`).
+  - 입력: `pickDateTime()` (연도·월 선택 → 일 선택 → 시·분 선택,
+    `lib/core/widgets/datetime_field.dart`).
+- **1.0.1 UX 개선**:
+  - 시각 표시를 `날짜(yyyy-MM-dd)` / `시간(HH:mm:ss)` **2줄**로 분리하고 초를 항상 표시.
+  - 좁은 화면(320dp)에서는 `입력`/`지금` 버튼을 아이콘으로 축약해 잘림 방지.
+  - 시각 입력 시트는 **draft 편집 + 적용/닫기**로 분리. 닫기 시 변경 사항은 저장하지 않음.
+  - 스테퍼 버튼을 길게 누르면 400ms 후 90ms 간격으로 연속 증감.
+  - 날짜 직접입력 파서가 `yyyy-MM-dd`, `yyyy.MM.dd`, `yyyy/MM/dd`, `yyyyMMdd`,
+    `yyyy년 MM월 dd일`을 지원하고 2월 30일 등 존재하지 않는 날짜를 거부.
+  - `flutter_localizations` + `ko` 로케일로 날짜 선택기 입력 형식·라벨을 한국어화.
+  - 연도 선택 단계에서 12개월 그리드를 함께 보여 줘 월 이동을 바로 선택.
+    좁은 화면에서도 `10월`이 줄바꿈되지 않도록 한 줄 고정 + `FittedBox` 축소.
+  - 시각 입력 필드의 `년/월/일/시/분/초` 접미사를 필드 내부(`suffixText`)에 배치해 잘림 방지.
+  - 저장된 ISO8601(UTC) 시각을 `fromMap()`에서 `toLocal()`로 복원해 재시작 후에도 로컬 시각 표시.
+  - CCTV 카드 전체를 접고 펼칠 수 있으며, 접힌 상태에서는 이름·오프셋·기록 건수만 표시.
+  - 기록 목록 헤더의 화살표로 목록을 접고 펼칠 수 있음.
+  - 바텀시트 `useSafeArea`와 키보드 인셋으로 Android 내비게이션 바/홈 인디케이터 겹침 방지.
 
 ## 2. 오차 계산 (#2, 1.0.0 구현됨)
 
@@ -36,6 +52,10 @@
   - 모델: `TimelineEvent` (`model_spec.md` §4.3 참조, `photoPath`에 촬영/선택 사진 저장).
   - 저장소: `TimelineEventRepository` (사건별 보정시각 정렬).
   - 화면: `showEventSheet()` (카메라 촬영·앨범 선택 + 썸네일 미리보기, `image_picker`).
+    영상 시각은 날짜/시간 2줄로 표시하고, 시각 입력 시트는 적용/닫기로 확정한다.
+  - 기록 목록의 `CCTV`/`실제` 라벨은 고정폭으로, 시각은 같은 시작점에서 표시한다.
+  - 기록 항목의 수정 버튼으로 메모를 편집한다. 저장 시 `EventsProvider.updateMemo()`를 호출하고,
+    취소하거나 변경이 없으면 저장하지 않는다. 빈 메모는 `(메모 없음)`으로 표시한다.
 - **향후 과제**: 사진 원본 보관 위치·동기화 정책.
 
 ## 4. 사건별 CCTV 관리 (#4, 1.0.0 구현됨)
@@ -68,7 +88,27 @@
 - **구현 상태**: 미구현 (사건별 보정시각 정렬 조회는 #3에서 선행 구현됨).
 - **향후 과제**: 차트 패키지 선정, 사건 단위 통합 타임라인 화면.
 
-## 8. 기능-코드 매핑표
+## 8. 첫 실행 튜토리얼 (#25, #33, 1.0.1 구현됨)
+
+- **요구**: 첫 실행 시 앱 사용 흐름을 4단계로 안내하고, 다시 보기 진입점을 제공한다.
+- **구현 상태**: 구현됨.
+- **동작**:
+  - 첫 실행(`tutorialSeen=false`)이면 사건 목록 진입 후 `/onboarding`으로 이동.
+  - ① 사건 만들기 ② 실제시간/CCTV 시간 입력 ③ 오차 확인 ④ 기록·타임라인.
+  - 각 단계에 실제 앱 화면 예시 이미지 4장(`assets/tutorial/`)을 함께 표시.
+  - 도움말 본문은 `WordWrapText`로 공백 기준 단어 단위 줄바꿈(좁은 화면·큰 글꼴 대응).
+  - `다음`/`이전`/`건너뛰기`/`시작하기`, 페이지 인디케이터.
+  - `건너뛰기` 또는 마지막 `시작하기`에서 `tutorialSeen=true` 저장.
+  - 사건 목록 앱바의 도움말 버튼으로 `튜토리얼 다시 보기`.
+- **관련 코드**:
+  - `lib/features/onboarding/providers/tutorial_provider.dart`
+  - `lib/features/onboarding/presentation/tutorial_screen.dart`
+  - `lib/core/widgets/word_wrap_text.dart`
+  - `lib/routing/app_router.dart` (`/onboarding`)
+  - `lib/core/constants/store_keys.dart` (`tutorialSeen`)
+  - `assets/tutorial/01-cases.png` … `04-records.png` (`pubspec.yaml` assets)
+
+## 9. 기능-코드 매핑표
 
 | # | 기능 | 저장 키 | 모델 | Repository | 화면/Provider | 상태 |
 |---|------|--------|------|------------|---------------|------|
@@ -76,6 +116,7 @@
 | 2 | 오차 계산 | — | — | — | `TimeCalcService` | 구현됨 |
 | 3 | 이벤트 입력 | `events` | `TimelineEvent` | `TimelineEventRepository` | `event_sheet`, `EventsProvider` | 구현됨 |
 | 4 | 사건별 CCTV 관리 | `cases`+`sources` | `CaseFile` | `CaseRepository` | `CasesScreen`·`CaseDetailScreen` | 구현됨 |
-| 5 | 검색 | — | — | — | — | 미구현 |
-| 6 | 지도 | — | — | — | — | 미구현 |
-| 7 | 그래프·타임라인 | — | — | — | — | 미구현 |
+| 5 | 검색 | — | — | — | — | 미구현 (v1.2.0 예정) |
+| 6 | 지도 | — | — | — | — | 미구현 (v1.2.0 예정) |
+| 7 | 그래프·타임라인 | `events` | `TimelineEvent` | `TimelineEventRepository` | — | 미구현 (v1.1.0 예정) |
+| 8 | 첫 실행 튜토리얼 | `tutorialSeen` | — | — | `TutorialScreen`, `TutorialProvider` | 구현됨 |

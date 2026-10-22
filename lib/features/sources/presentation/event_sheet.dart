@@ -22,6 +22,7 @@ Future<void> showEventSheet(
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
+    useSafeArea: true,
     builder: (sheetContext) => _EventSheetBody(
       caseId: caseId,
       source: source,
@@ -72,9 +73,8 @@ class _EventSheetBodyState extends State<_EventSheetBody> {
       setState(() => _photoPath = file.path);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('사진을 가져올 수 없습니다.')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('사진을 가져올 수 없습니다.')));
     }
   }
 
@@ -94,9 +94,8 @@ class _EventSheetBodyState extends State<_EventSheetBody> {
     } catch (_) {
       if (!mounted) return;
       setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('기록을 저장할 수 없습니다.')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('기록을 저장할 수 없습니다.')));
       return;
     }
     if (!mounted) return;
@@ -105,105 +104,126 @@ class _EventSheetBodyState extends State<_EventSheetBody> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: 16,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '${widget.source.name} 기록 추가',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '영상 시각: ${formatDateTime(_displayed)}',
-                  style: Theme.of(context).textTheme.bodyLarge,
+    final theme = Theme.of(context);
+    return SingleChildScrollView(
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 16,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${widget.source.name} 기록 추가',
+              style: theme.textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('영상 시각', style: theme.textTheme.labelMedium),
+                      Text(
+                        formatDate(_displayed),
+                        style: theme.textTheme.bodySmall,
+                      ),
+                      Text(
+                        formatTime(_displayed),
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              TextButton.icon(
-                icon: const Icon(Icons.edit_calendar),
-                label: const Text('입력'),
-                onPressed: () => showTimeEditSheet(
-                  context,
-                  title: '사건 영상 시각 입력',
-                  initial: _displayed,
-                  onChanged: (v) async {
-                    if (!mounted) return;
-                    setState(() => _displayed = v);
-                  },
+                TextButton.icon(
+                  icon: const Icon(Icons.edit_calendar),
+                  label: const Text('입력'),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    minimumSize: const Size(0, 36),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    textStyle: const TextStyle(fontSize: 12),
+                  ),
+                  onPressed: () => showTimeEditSheet(
+                    context,
+                    title: '사건 영상 시각 입력',
+                    initial: _displayed,
+                    onApply: (v) async {
+                      if (!mounted) return;
+                      setState(() => _displayed = v);
+                    },
+                  ),
                 ),
-              ),
-            ],
-          ),
-          TextField(
-            controller: _memoController,
-            decoration: const InputDecoration(labelText: '기록 메모'),
-            maxLines: 2,
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              if (_photoPath.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.file(
-                      File(_photoPath),
-                      width: 72,
-                      height: 72,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, _, __) => const SizedBox(
+              ],
+            ),
+            TextField(
+              controller: _memoController,
+              decoration: const InputDecoration(labelText: '기록 메모'),
+              maxLines: 2,
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                if (_photoPath.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.file(
+                        File(_photoPath),
                         width: 72,
                         height: 72,
-                        child: Icon(Icons.broken_image),
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, _, __) => const SizedBox(
+                          width: 72,
+                          height: 72,
+                          child: Icon(Icons.broken_image),
+                        ),
                       ),
                     ),
                   ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.photo_camera),
+                        label: const Text('사진 찍기'),
+                        onPressed: () => _pickPhoto(ImageSource.camera),
+                      ),
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.photo_library),
+                        label: const Text('앨범에서 선택'),
+                        onPressed: () => _pickPhoto(ImageSource.gallery),
+                      ),
+                    ],
+                  ),
                 ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    OutlinedButton.icon(
-                      icon: const Icon(Icons.photo_camera),
-                      label: const Text('사진 찍기'),
-                      onPressed: () => _pickPhoto(ImageSource.camera),
-                    ),
-                    OutlinedButton.icon(
-                      icon: const Icon(Icons.photo_library),
-                      label: const Text('앨범에서 선택'),
-                      onPressed: () => _pickPhoto(ImageSource.gallery),
-                    ),
-                  ],
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: _saving ? null : () => Navigator.of(context).pop(),
+                  child: const Text('취소'),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              TextButton(
-                onPressed: _saving ? null : () => Navigator.of(context).pop(),
-                child: const Text('취소'),
-              ),
-              FilledButton(
-                onPressed: _saving ? null : _save,
-                child: const Text('저장'),
-              ),
-            ],
-          ),
-        ],
+                FilledButton(
+                  onPressed: _saving ? null : _save,
+                  child: const Text('저장'),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
