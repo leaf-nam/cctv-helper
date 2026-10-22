@@ -29,6 +29,8 @@
     좁은 화면에서도 `10월`이 줄바꿈되지 않도록 한 줄 고정 + `FittedBox` 축소.
   - 시각 입력 필드의 `년/월/일/시/분/초` 접미사를 필드 내부(`suffixText`)에 배치해 잘림 방지.
   - 저장된 ISO8601(UTC) 시각을 `fromMap()`에서 `toLocal()`로 복원해 재시작 후에도 로컬 시각 표시.
+  - CCTV 카드 전체를 접고 펼칠 수 있으며, 접힌 상태에서는 이름·오프셋·기록 건수만 표시.
+  - 기록 목록 헤더의 화살표로 목록을 접고 펼칠 수 있음.
   - 바텀시트 `useSafeArea`와 키보드 인셋으로 Android 내비게이션 바/홈 인디케이터 겹침 방지.
 
 ## 2. 오차 계산 (#2, 1.0.0 구현됨)
@@ -52,6 +54,8 @@
   - 화면: `showEventSheet()` (카메라 촬영·앨범 선택 + 썸네일 미리보기, `image_picker`).
     영상 시각은 날짜/시간 2줄로 표시하고, 시각 입력 시트는 적용/닫기로 확정한다.
   - 기록 목록의 `CCTV`/`실제` 라벨은 고정폭으로, 시각은 같은 시작점에서 표시한다.
+  - 기록 항목의 수정 버튼으로 메모를 편집한다. 저장 시 `EventsProvider.updateMemo()`를 호출하고,
+    취소하거나 변경이 없으면 저장하지 않는다. 빈 메모는 `(메모 없음)`으로 표시한다.
 - **향후 과제**: 사진 원본 보관 위치·동기화 정책.
 
 ## 4. 사건별 CCTV 관리 (#4, 1.0.0 구현됨)
@@ -84,7 +88,7 @@
 - **구현 상태**: 미구현 (사건별 보정시각 정렬 조회는 #3에서 선행 구현됨).
 - **향후 과제**: 차트 패키지 선정, 사건 단위 통합 타임라인 화면.
 
-## 8. 첫 실행 튜토리얼 (#25, 1.0.1 구현됨)
+## 8. 첫 실행 튜토리얼 (#25, #33, 1.0.1 구현됨)
 
 - **요구**: 첫 실행 시 앱 사용 흐름을 4단계로 안내하고, 다시 보기 진입점을 제공한다.
 - **구현 상태**: 구현됨.
@@ -92,12 +96,14 @@
   - 첫 실행(`tutorialSeen=false`)이면 사건 목록 진입 후 `/onboarding`으로 이동.
   - ① 사건 만들기 ② 실제시간/CCTV 시간 입력 ③ 오차 확인 ④ 기록·타임라인.
   - 각 단계에 실제 앱 화면 예시 이미지 4장(`assets/tutorial/`)을 함께 표시.
+  - 도움말 본문은 `WordWrapText`로 공백 기준 단어 단위 줄바꿈(좁은 화면·큰 글꼴 대응).
   - `다음`/`이전`/`건너뛰기`/`시작하기`, 페이지 인디케이터.
   - `건너뛰기` 또는 마지막 `시작하기`에서 `tutorialSeen=true` 저장.
   - 사건 목록 앱바의 도움말 버튼으로 `튜토리얼 다시 보기`.
 - **관련 코드**:
   - `lib/features/onboarding/providers/tutorial_provider.dart`
   - `lib/features/onboarding/presentation/tutorial_screen.dart`
+  - `lib/core/widgets/word_wrap_text.dart`
   - `lib/routing/app_router.dart` (`/onboarding`)
   - `lib/core/constants/store_keys.dart` (`tutorialSeen`)
   - `assets/tutorial/01-cases.png` … `04-records.png` (`pubspec.yaml` assets)

@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../../core/services/time_calc_service.dart';
 import '../../../core/widgets/datetime_field.dart';
 import '../../../core/widgets/time_edit_sheet.dart';
+import '../../events/domain/timeline_event.dart';
 import '../../events/providers/events_provider.dart';
 import '../../sources/domain/cctv_source.dart';
 import 'event_sheet.dart';
@@ -159,6 +160,12 @@ class CctvCard extends StatefulWidget {
 class _CctvCardState extends State<CctvCard> {
   /// 시간 확인칸에서 마지막으로 조회한 CCTV 시간. 기록 추가 시 초기값으로 사용.
   DateTime? _checkedTime;
+
+  /// 카드 전체 접기/펼치기. 사건 상세가 길어질 때 CCTV 단위로 접는다.
+  bool _expanded = true;
+
+  /// 카드 안 기록 목록 접기/펼치기. 사진·기록이 많을 때 목록만 접는다.
+  bool _recordsExpanded = true;
 
   CctvSource get _source => widget.source;
 
@@ -349,6 +356,50 @@ class _CctvCardState extends State<CctvCard> {
     await widget.onRename(_source.id, name);
   }
 
+  /// 기록 메모 수정 다이얼로그. 저장 시에만 EventsProvider에 반영한다.
+  Future<void> _editMemo(TimelineEvent event) async {
+    var memo = event.memo;
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          scrollable: true,
+          title: const Text('메모 수정'),
+          content: TextFormField(
+            key: const ValueKey('memo-edit-field'),
+            initialValue: event.memo,
+            autofocus: true,
+            minLines: 2,
+            maxLines: 5,
+            textInputAction: TextInputAction.newline,
+            onChanged: (value) => memo = value,
+            decoration: const InputDecoration(
+              labelText: '메모',
+              hintText: '메모를 입력하세요',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              key: const ValueKey('memo-edit-cancel'),
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('취소'),
+            ),
+            FilledButton(
+              key: const ValueKey('memo-edit-save'),
+              onPressed: () => Navigator.of(dialogContext).pop(memo),
+              child: const Text('저장'),
+            ),
+          ],
+        );
+      },
+    );
+    if (!mounted || result == null) return;
+    final trimmed = result.trim();
+    if (trimmed == event.memo) return;
+    await context.read<EventsProvider>().updateMemo(event.id, trimmed);
+  }
+
   /// 시각 편집 시트 열기. `displayed`가 false면 실제 시각.
   /// 시트를 열기 전 포커스를 풀어 행 입력칸 표시가 외부 변경에 동기화되게 한다.
   Future<void> _editTime(
@@ -487,9 +538,34 @@ class _CctvCardState extends State<CctvCard> {
             Row(
               children: [
                 Expanded(
-                  child: Text(
-                    _source.name,
-                    style: Theme.of(context).textTheme.titleMedium,
+                  child: Semantics(
+                    button: true,
+                    label: _expanded ? 'CCTV 접기' : 'CCTV 펼치기',
+                    child: InkWell(
+                      key: ValueKey('cctv-toggle-${_source.id}'),
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: () => setState(() => _expanded = !_expanded),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                _source.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              _expanded ? Icons.expand_less : Icons.expand_more,
+                              size: 20,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ),
                 IconButton(
@@ -504,90 +580,34 @@ class _CctvCardState extends State<CctvCard> {
                 ),
               ],
             ),
-            const SizedBox(height: 4),
-            // 기준 영역: 배경+테두리 박스로 시간확인·기록과 시각 분리
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(10, 8, 4, 10),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                border: Border.all(
-                  color: Theme.of(context).colorScheme.outlineVariant,
+            if (!_expanded)
+              Padding(
+                padding: const EdgeInsets.only(left: 2, bottom: 4),
+                child: Text(
+                  ready
+                      ? '기록 ${events.length}건 · '
+                            '${TimeCalcService.formatOffset(offset)}'
+                      : '기준 시각 미입력 · 기록 ${events.length}건',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
-                borderRadius: BorderRadius.circular(10),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.push_pin,
-                        size: 14,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                      const SizedBox(width: 4),
-                      Text('기준', style: Theme.of(context).textTheme.labelSmall),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  _timeRow(
-                    context,
-                    label: 'CCTV 시각',
-                    icon: Icons.videocam,
-                    value: _source.displayedAt,
-                    displayed: true,
-                  ),
-                  const Divider(),
-                  _timeRow(
-                    context,
-                    label: '실제 시각',
-                    icon: Icons.access_time,
-                    value: _source.actualAt,
-                    displayed: false,
-                  ),
-                  // 오차 문구도 기준 표 안에 표시 (기준 확정 시에만)
-                  if (ready) ...[
-                    const Divider(),
-                    Text(
-                      TimeCalcService.formatOffset(offset),
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const Divider(),
-            // 아코디언: 기준 확정 시 펼쳐지며 오차·확인·기록 공개
             AnimatedSize(
-              duration: const Duration(milliseconds: 300),
+              duration: const Duration(milliseconds: 250),
               curve: Curves.easeInOut,
               alignment: Alignment.topCenter,
-              child: ready
+              child: _expanded
                   ? Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _timeChecker(),
-                        const Divider(),
-                        // 시간 확인 바로 밑 기록 추가 (확인된 시각으로 바로 기록)
-                        SizedBox(
-                          width: double.infinity,
-                          child: FilledButton.icon(
-                            icon: const Icon(Icons.add),
-                            label: const Text('기록 추가'),
-                            onPressed: () => showEventSheet(
-                              context,
-                              widget.caseId,
-                              _source,
-                              initialDisplayed: recordTime,
-                            ),
-                          ),
-                        ),
-                        const Divider(),
-                        // 기록 로그: 분리된 박스에 시간순 보관
+                        const SizedBox(height: 4),
+                        // 기준 영역: 배경+테두리 박스로 시간확인·기록과 시각 분리
                         Container(
                           width: double.infinity,
-                          padding: const EdgeInsets.all(10),
+                          padding: const EdgeInsets.fromLTRB(10, 8, 4, 10),
                           decoration: BoxDecoration(
                             color: Theme.of(context)
                                 .colorScheme
@@ -604,10 +624,16 @@ class _CctvCardState extends State<CctvCard> {
                             children: [
                               Row(
                                 children: [
-                                  const Icon(Icons.list_alt, size: 14),
+                                  Icon(
+                                    Icons.push_pin,
+                                    size: 14,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .primary,
+                                  ),
                                   const SizedBox(width: 4),
                                   Text(
-                                    '기록 ${events.length}건',
+                                    '기준',
                                     style: Theme.of(context)
                                         .textTheme
                                         .labelSmall,
@@ -615,68 +641,246 @@ class _CctvCardState extends State<CctvCard> {
                                 ],
                               ),
                               const SizedBox(height: 4),
-                              if (events.isEmpty)
-                                const Text('아직 기록이 없습니다.')
-                              else
-                                ...events.map(
-                                  (e) => ListTile(
-                                    dense: true,
-                                    isThreeLine: true,
-                                    contentPadding: EdgeInsets.zero,
-                                    leading: e.photoPath.isEmpty
-                                        ? null
-                                        : ClipRRect(
-                                            borderRadius: BorderRadius.circular(
-                                              6,
-                                            ),
-                                            child: Image.file(
-                                              File(e.photoPath),
-                                              width: 48,
-                                              height: 48,
-                                              fit: BoxFit.cover,
-                                              errorBuilder: (context, _, __) =>
-                                                  const Icon(
-                                                    Icons.broken_image,
-                                                  ),
-                                            ),
-                                          ),
-                                    title: Text(
-                                      e.memo.isEmpty ? '(메모 없음)' : e.memo,
-                                    ),
-                                    subtitle: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        _recordTimeRow(
-                                          'CCTV',
-                                          e.displayedAt,
-                                          timeKey: ValueKey(
-                                            'record-cctv-${e.id}',
-                                          ),
-                                        ),
-                                        _recordTimeRow(
-                                          '실제',
-                                          e.correctedAt,
-                                          timeKey: ValueKey(
-                                            'record-actual-${e.id}',
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    trailing: IconButton(
-                                      icon: const Icon(Icons.delete_outline),
-                                      onPressed: () => context
-                                          .read<EventsProvider>()
-                                          .removeEvent(e.id),
-                                    ),
-                                  ),
+                              _timeRow(
+                                context,
+                                label: 'CCTV 시각',
+                                icon: Icons.videocam,
+                                value: _source.displayedAt,
+                                displayed: true,
+                              ),
+                              const Divider(),
+                              _timeRow(
+                                context,
+                                label: '실제 시각',
+                                icon: Icons.access_time,
+                                value: _source.actualAt,
+                                displayed: false,
+                              ),
+                              // 오차 문구도 기준 표 안에 표시 (기준 확정 시에만)
+                              if (ready) ...[
+                                const Divider(),
+                                Text(
+                                  TimeCalcService.formatOffset(offset),
+                                  style: Theme.of(context).textTheme.bodyMedium,
                                 ),
+                              ],
                             ],
                           ),
                         ),
+                        const Divider(),
+                        // 아코디언: 기준 확정 시 펼쳐지며 오차·확인·기록 공개
+                        AnimatedSize(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                          alignment: Alignment.topCenter,
+                          child: ready
+                              ? Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _timeChecker(),
+                                    const Divider(),
+                                    // 시간 확인 바로 밑 기록 추가 (확인된 시각으로 바로 기록)
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: FilledButton.icon(
+                                        icon: const Icon(Icons.add),
+                                        label: const Text('기록 추가'),
+                                        onPressed: () => showEventSheet(
+                                          context,
+                                          widget.caseId,
+                                          _source,
+                                          initialDisplayed: recordTime,
+                                        ),
+                                      ),
+                                    ),
+                                    const Divider(),
+                                    // 기록 로그: 분리된 박스에 시간순 보관
+                                    Container(
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .surfaceContainerHighest,
+                                        border: Border.all(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .outlineVariant,
+                                        ),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Semantics(
+                                            button: true,
+                                            label: _recordsExpanded
+                                                ? '기록 접기'
+                                                : '기록 펼치기',
+                                            child: InkWell(
+                                              key: ValueKey(
+                                                'records-toggle-${_source.id}',
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                              onTap: () => setState(
+                                                () => _recordsExpanded =
+                                                    !_recordsExpanded,
+                                              ),
+                                              child: Padding(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      vertical: 4,
+                                                    ),
+                                                child: Row(
+                                                  children: [
+                                                    const Icon(
+                                                      Icons.list_alt,
+                                                      size: 14,
+                                                    ),
+                                                    const SizedBox(width: 4),
+                                                    Text(
+                                                      '기록 ${events.length}건',
+                                                      style: Theme.of(context)
+                                                          .textTheme
+                                                          .labelSmall,
+                                                    ),
+                                                    const Spacer(),
+                                                    Icon(
+                                                      _recordsExpanded
+                                                          ? Icons.expand_less
+                                                          : Icons.expand_more,
+                                                      size: 18,
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          if (!_recordsExpanded)
+                                            const SizedBox.shrink()
+                                          else if (events.isEmpty)
+                                            const Text('아직 기록이 없습니다.')
+                                          else
+                                            ...events.map(
+                                              (e) => ListTile(
+                                                dense: true,
+                                                isThreeLine: true,
+                                                contentPadding: EdgeInsets.zero,
+                                                leading: e.photoPath.isEmpty
+                                                    ? null
+                                                    : ClipRRect(
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              6,
+                                                            ),
+                                                        child: Image.file(
+                                                          File(e.photoPath),
+                                                          width: 48,
+                                                          height: 48,
+                                                          fit: BoxFit.cover,
+                                                          errorBuilder:
+                                                              (
+                                                                context,
+                                                                _,
+                                                                __,
+                                                              ) => const Icon(
+                                                                Icons
+                                                                    .broken_image,
+                                                              ),
+                                                        ),
+                                                      ),
+                                                title: Text(
+                                                  e.memo.isEmpty
+                                                      ? '(메모 없음)'
+                                                      : e.memo,
+                                                ),
+                                                subtitle: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    _recordTimeRow(
+                                                      'CCTV',
+                                                      e.displayedAt,
+                                                      timeKey: ValueKey(
+                                                        'record-cctv-${e.id}',
+                                                      ),
+                                                    ),
+                                                    _recordTimeRow(
+                                                      '실제',
+                                                      e.correctedAt,
+                                                      timeKey: ValueKey(
+                                                        'record-actual-${e.id}',
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                trailing: Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    IconButton(
+                                                      key: ValueKey(
+                                                        'record-edit-${e.id}',
+                                                      ),
+                                                      icon: const Icon(
+                                                        Icons.edit_outlined,
+                                                        size: 20,
+                                                      ),
+                                                      tooltip: '메모 수정',
+                                                      visualDensity:
+                                                          VisualDensity.compact,
+                                                      padding: EdgeInsets.zero,
+                                                      constraints:
+                                                          const BoxConstraints.tightFor(
+                                                            width: 36,
+                                                            height: 36,
+                                                          ),
+                                                      onPressed: () =>
+                                                          _editMemo(e),
+                                                    ),
+                                                    IconButton(
+                                                      key: ValueKey(
+                                                        'record-delete-${e.id}',
+                                                      ),
+                                                      icon: const Icon(
+                                                        Icons.delete_outline,
+                                                        size: 20,
+                                                      ),
+                                                      tooltip: '삭제',
+                                                      visualDensity:
+                                                          VisualDensity.compact,
+                                                      padding: EdgeInsets.zero,
+                                                      constraints:
+                                                          const BoxConstraints.tightFor(
+                                                            width: 36,
+                                                            height: 36,
+                                                          ),
+                                                      onPressed: () => context
+                                                          .read<
+                                                            EventsProvider
+                                                          >()
+                                                          .removeEvent(e.id),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : const SizedBox(
+                                  width: double.infinity,
+                                  height: 0,
+                                ),
+                        ),
                       ],
                     )
-                  : const SizedBox(width: double.infinity, height: 0),
+                  : const SizedBox(width: double.infinity),
             ),
           ],
         ),

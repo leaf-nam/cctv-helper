@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/widgets/word_wrap_text.dart';
 import '../providers/tutorial_provider.dart';
 
 /// 첫 실행/다시 보기 튜토리얼.
@@ -136,8 +137,9 @@ class _TutorialScreenState extends State<TutorialScreen> {
                           style: theme.textTheme.headlineSmall,
                         ),
                         const SizedBox(height: 8),
-                        Text(
+                        WordWrapText(
                           page.body,
+                          key: ValueKey('tutorial-body-$index'),
                           textAlign: TextAlign.center,
                           style: theme.textTheme.bodyLarge,
                         ),

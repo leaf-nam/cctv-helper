@@ -234,14 +234,104 @@ void main() {
     expect(tester.getTopLeft(cctv).dx, tester.getTopLeft(actual).dx);
   });
 
+  testWidgets('기록 메모를 수정하고 취소할 수 있다', (tester) async {
+    final setup = await pumpCase(
+      tester,
+      displayedAt: DateTime(2026, 10, 8, 14, 0, 0),
+      actualAt: DateTime(2026, 10, 8, 14, 2, 0),
+    );
+    final source = setup.sources.byCase(setup.caseId).first;
+    await setup.events.addEvent(
+      caseId: setup.caseId,
+      source: source,
+      displayedAt: DateTime(2026, 10, 8, 14, 5, 0),
+      memo: '원래 메모',
+    );
+    await tester.pumpAndSettle();
+    final event = setup.events.byCase(setup.caseId).first;
+
+    await tapVisible(tester, find.byKey(ValueKey('record-edit-${event.id}')));
+    expect(find.text('메모 수정'), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const ValueKey('memo-edit-field')),
+      '수정된 메모',
+    );
+    await tester.tap(find.byKey(const ValueKey('memo-edit-save')));
+    await tester.pumpAndSettle();
+
+    expect(setup.events.byCase(setup.caseId).first.memo, '수정된 메모');
+    expect(find.text('수정된 메모'), findsOneWidget);
+
+    await tapVisible(tester, find.byKey(ValueKey('record-edit-${event.id}')));
+    await tester.enterText(
+      find.byKey(const ValueKey('memo-edit-field')),
+      '저장하지 않을 메모',
+    );
+    await tester.tap(find.byKey(const ValueKey('memo-edit-cancel')));
+    await tester.pumpAndSettle();
+
+    expect(setup.events.byCase(setup.caseId).first.memo, '수정된 메모');
+    expect(find.text('저장하지 않을 메모'), findsNothing);
+  });
+
+  testWidgets('CCTV 카드와 기록 목록을 접고 펼칠 수 있다', (tester) async {
+    final setup = await pumpCase(
+      tester,
+      displayedAt: DateTime(2026, 10, 8, 14, 0, 0),
+      actualAt: DateTime(2026, 10, 8, 14, 2, 0),
+    );
+    final source = setup.sources.byCase(setup.caseId).first;
+    await setup.events.addEvent(
+      caseId: setup.caseId,
+      source: source,
+      displayedAt: DateTime(2026, 10, 8, 14, 5, 0),
+      memo: '첫 번째 기록',
+    );
+    await setup.events.addEvent(
+      caseId: setup.caseId,
+      source: source,
+      displayedAt: DateTime(2026, 10, 8, 14, 10, 0),
+      memo: '두 번째 기록',
+    );
+    await tester.pumpAndSettle();
+
+    await tapVisible(
+      tester,
+      find.byKey(ValueKey('records-toggle-${source.id}')),
+    );
+    expect(find.text('첫 번째 기록'), findsNothing);
+    expect(find.text('기록 2건'), findsOneWidget);
+
+    await tapVisible(
+      tester,
+      find.byKey(ValueKey('records-toggle-${source.id}')),
+    );
+    expect(find.text('첫 번째 기록'), findsOneWidget);
+
+    await tapVisible(tester, find.byKey(ValueKey('cctv-toggle-${source.id}')));
+    expect(find.widgetWithText(FilledButton, '기록 추가'), findsNothing);
+    expect(find.textContaining('기록 2건'), findsOneWidget);
+
+    await tapVisible(tester, find.byKey(ValueKey('cctv-toggle-${source.id}')));
+    expect(find.widgetWithText(FilledButton, '기록 추가'), findsOneWidget);
+  });
+
   testWidgets('작은 화면·큰 글꼴에서도 시각 2줄 표시가 넘치지 않음', (tester) async {
-    await pumpCase(
+    final setup = await pumpCase(
       tester,
       displayedAt: DateTime(2026, 10, 8, 14, 0, 0),
       actualAt: DateTime(2026, 10, 8, 14, 2, 0),
       surfaceSize: const Size(320, 568),
       textScale: 1.3,
     );
+    final source = setup.sources.byCase(setup.caseId).first;
+    await setup.events.addEvent(
+      caseId: setup.caseId,
+      source: source,
+      displayedAt: DateTime(2026, 10, 8, 14, 5, 0),
+      memo: '작은 화면 기록',
+    );
+    await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
     expect(find.text('2026-10-08'), findsWidgets);
