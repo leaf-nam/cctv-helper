@@ -11,6 +11,8 @@ void main() {
       expect(restored.id, original.id);
       expect(restored.title, '편의점 사건');
       expect(restored.description, '메모');
+      expect(restored.createdAt.isUtc, isFalse);
+      expect(restored.createdAt.isAtSameMomentAs(original.createdAt), isTrue);
     });
 
     test('copyWith 제목 변경', () {
@@ -43,6 +45,13 @@ void main() {
       final restored = CctvSource.fromMap(original.toMap());
       expect(restored.name, '입구');
       expect(restored.offsetMillis, 120000);
+      expect(restored.displayedAt!.isUtc, isFalse);
+      expect(restored.actualAt!.isUtc, isFalse);
+      expect(
+        restored.displayedAt!.isAtSameMomentAs(original.displayedAt!),
+        isTrue,
+      );
+      expect(restored.actualAt!.isAtSameMomentAs(original.actualAt!), isTrue);
     });
   });
 
@@ -82,6 +91,9 @@ void main() {
         restored.displayedAt.isAtSameMomentAs(original.displayedAt),
         isTrue,
       );
+      expect(restored.displayedAt.isUtc, isFalse);
+      expect(restored.correctedAt.isUtc, isFalse);
+      expect(restored.createdAt.isUtc, isFalse);
     });
   });
 }

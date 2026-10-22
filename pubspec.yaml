@@ -9,6 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
   provider: ^6.0.0
   go_router: ^13.2.0
   shared_preferences: ^2.5.5
@@ -43,3 +45,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/logo.png
+    - assets/tutorial/

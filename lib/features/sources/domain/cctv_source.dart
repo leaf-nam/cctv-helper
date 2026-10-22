@@ -63,7 +63,7 @@ class CctvSource {
 
   static DateTime? _parseDate(Object? value) {
     if (value == null) return null;
-    return DateTime.tryParse(value as String);
+    return DateTime.tryParse(value as String)?.toLocal();
   }
 
   factory CctvSource.fromMap(Map<String, dynamic> map) {
@@ -75,7 +75,7 @@ class CctvSource {
       displayedAt: _parseDate(map['displayedAt']),
       actualAt: _parseDate(map['actualAt']),
       createdAt:
-          DateTime.tryParse((map['createdAt'] ?? '') as String) ??
+          DateTime.tryParse((map['createdAt'] ?? '') as String)?.toLocal() ??
           DateTime.now(),
     );
   }

@@ -59,7 +59,8 @@ class TimelineEvent {
 
   factory TimelineEvent.fromMap(Map<String, dynamic> map) {
     DateTime parse(String key) =>
-        DateTime.tryParse((map[key] ?? '') as String) ?? DateTime.now();
+        DateTime.tryParse((map[key] ?? '') as String)?.toLocal() ??
+        DateTime.now();
     return TimelineEvent(
       id: (map['id'] ?? '') as String,
       caseId: (map['caseId'] ?? '') as String,
