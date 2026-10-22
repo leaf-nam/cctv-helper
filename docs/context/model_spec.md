@@ -43,7 +43,9 @@ class StoreKeys {
    correctedAt = displayedAt.add(Duration(milliseconds: offsetMillis));
    ```
    `toMap()`에서는 `DateTime`을 ISO8601 문자열(UTC)로 저장하고,
-   `fromMap()`에서는 `DateTime.tryParse() ?? DateTime.now()` 방어 읽기를 합니다.
+   `fromMap()`에서는 `DateTime.tryParse()?.toLocal() ?? DateTime.now()`로
+   현재 시간대의 로컬 시각으로 복원합니다. (UTC로 저장된 값을 그대로 표시하면
+   재시작 후 시각이 시간대만큼 어긋나므로 반드시 `toLocal()`을 적용합니다.)
 
 ## 4. 모델별 스펙
 

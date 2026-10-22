@@ -38,7 +38,7 @@ class CaseFile {
       description: (map['description'] ?? '') as String,
       sortOrder: (map['sortOrder'] ?? 0) as int,
       createdAt:
-          DateTime.tryParse((map['createdAt'] ?? '') as String) ??
+          DateTime.tryParse((map['createdAt'] ?? '') as String)?.toLocal() ??
           DateTime.now(),
     );
   }
