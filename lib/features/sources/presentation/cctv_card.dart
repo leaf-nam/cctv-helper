@@ -162,6 +162,12 @@ class _CctvCardState extends State<CctvCard> {
 
   CctvSource get _source => widget.source;
 
+  /// 좁은 화면이거나 글꼴이 크면 텍스트 버튼 대신 아이콘 버튼을 쓴다.
+  bool _useCompactActions(BuildContext context) {
+    return MediaQuery.sizeOf(context).width < 400 ||
+        MediaQuery.textScalerOf(context).scale(1) > 1.2;
+  }
+
   /// 시간 확인칸. 기준 확정 전에는 안내만 표시.
   Widget _timeChecker() {
     if (_source.offsetMillis == null) {
@@ -173,7 +179,7 @@ class _CctvCardState extends State<CctvCard> {
     final corrected = _checkedTime == null
         ? null
         : _source.correct(_checkedTime!);
-    final compact = MediaQuery.sizeOf(context).width < 380;
+    final compact = _useCompactActions(context);
     void openCheckedTimeSheet() {
       showTimeEditSheet(
         context,
@@ -356,7 +362,7 @@ class _CctvCardState extends State<CctvCard> {
     required DateTime? value,
     required bool displayed,
   }) {
-    final compact = MediaQuery.sizeOf(context).width < 380;
+    final compact = _useCompactActions(context);
     return Row(
       children: [
         Icon(icon, color: Theme.of(context).colorScheme.primary),
