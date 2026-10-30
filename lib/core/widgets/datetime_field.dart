@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 /// 날짜+시간 선택 헬퍼. 취소하면 null.
 ///
@@ -341,4 +342,77 @@ DateTime? _makeDateTime(
     return null;
   }
   return value;
+}
+
+/// 날짜 직접 입력용 포매터. 숫자·구분자만 허용하고 과도한 길이를 막는다.
+List<TextInputFormatter> dateInputFormatters() => [
+  FilteringTextInputFormatter.allow(RegExp(r'[0-9\-./년월일 ]')),
+  LengthLimitingTextInputFormatter(14),
+];
+
+/// 시간 직접 입력용 포매터. 숫자·구분자만 허용하고 과도한 길이를 막는다.
+List<TextInputFormatter> timeInputFormatters() => [
+  FilteringTextInputFormatter.allow(RegExp(r'[0-9:시분초 ]')),
+  LengthLimitingTextInputFormatter(10),
+];
+
+/// 직접 입력 검증 결과.
+class DateTimeInputValidation {
+  const DateTimeInputValidation._(this.value, this.error);
+
+  const DateTimeInputValidation.empty() : this._(null, null);
+  const DateTimeInputValidation.valid(DateTime value) : this._(value, null);
+  const DateTimeInputValidation.invalid(String error) : this._(null, error);
+
+  final DateTime? value;
+  final String? error;
+
+  bool get isEmpty => value == null && error == null;
+  bool get isValid => value != null;
+}
+
+/// 날짜 직접 입력 검증 (#36).
+///
+/// `7777777`처럼 자릿수가 맞지 않거나 1900~2100 범위를 벗어나면 오류를
+/// 돌려주고, 유효한 날짜만 [DateTimeInputValidation.value]로 반환한다.
+DateTimeInputValidation validateDateInput(String raw) {
+  final text = raw.trim();
+  if (text.isEmpty) return const DateTimeInputValidation.empty();
+  final parsed = parseDateInput(text);
+  if (parsed != null) return DateTimeInputValidation.valid(parsed);
+
+  final digits = text.replaceAll(RegExp(r'[^0-9]'), '');
+  final hasSeparator = RegExp(r'[-./년월일]').hasMatch(text);
+  if (digits.length >= 6 && (hasSeparator || digits.length == 8)) {
+    return const DateTimeInputValidation.invalid(
+      '날짜 범위를 확인하세요 (1900~2100년, 실제 존재하는 날짜).',
+    );
+  }
+  return const DateTimeInputValidation.invalid('날짜 형식은 yyyy-MM-dd 입니다.');
+}
+
+/// 시간 직접 입력 검증 (#36).
+///
+/// 시 0~23, 분/초 0~59를 벗어나면 오류를 돌려준다.
+DateTimeInputValidation validateTimeInput(String raw) {
+  final text = raw.trim();
+  if (text.isEmpty) return const DateTimeInputValidation.empty();
+  final parsed = parseTimeInput(text);
+  if (parsed != null) return DateTimeInputValidation.valid(parsed);
+
+  final numbers = RegExp(r'\d+')
+      .allMatches(text)
+      .map((m) => int.tryParse(m.group(0)!) ?? -1)
+      .toList();
+  if (numbers.isNotEmpty) {
+    final compact = text.replaceAll(RegExp(r'[^0-9]'), '');
+    final looksLikeTime =
+        numbers.length >= 2 || compact.length == 4 || compact.length == 6;
+    if (looksLikeTime) {
+      return const DateTimeInputValidation.invalid(
+        '시간 범위를 확인하세요 (00~23시, 00~59분/초).',
+      );
+    }
+  }
+  return const DateTimeInputValidation.invalid('시간 형식은 HH:mm:ss 입니다.');
 }

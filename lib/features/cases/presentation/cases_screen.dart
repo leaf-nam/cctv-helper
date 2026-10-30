@@ -3,7 +3,9 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/widgets/datetime_field.dart';
+import '../../events/providers/events_provider.dart';
 import '../../onboarding/providers/tutorial_provider.dart';
+import '../../photos/providers/photos_provider.dart';
 import '../providers/cases_provider.dart';
 
 /// 사건 목록 화면 (`/`, #4).
@@ -90,6 +92,10 @@ class _CasesScreenState extends State<CasesScreen> {
       },
     );
     if (confirmed != true) return;
+    if (!mounted) return;
+    await context.read<PhotosProvider>().removeByCase(id);
+    if (!mounted) return;
+    await context.read<EventsProvider>().removeByCase(id);
     if (!mounted) return;
     await context.read<CasesProvider>().removeCase(id);
   }

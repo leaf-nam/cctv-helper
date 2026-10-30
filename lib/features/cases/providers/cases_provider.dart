@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../core/constants/store_keys.dart';
 import '../../../core/services/local_store.dart';
+import '../../../core/services/photo_storage_service.dart';
 import '../data/case_repository.dart';
 import '../domain/case_file.dart';
 
@@ -9,10 +10,15 @@ import '../domain/case_file.dart';
 class CasesProvider extends ChangeNotifier {
   final CaseRepository _repo;
   final LocalStore? _store;
+  final PhotoStorageService? _storage;
 
-  CasesProvider([CaseRepository? repo, LocalStore? store])
-    : _repo = repo ?? InMemoryCaseRepository(),
-      _store = store;
+  CasesProvider([
+    CaseRepository? repo,
+    LocalStore? store,
+    PhotoStorageService? storage,
+  ]) : _repo = repo ?? InMemoryCaseRepository(),
+       _store = store,
+       _storage = storage;
 
   /// 시작 시 로컬 저장분 복원.
   Future<void> load() async {
@@ -79,6 +85,7 @@ class CasesProvider extends ChangeNotifier {
 
   Future<void> removeCase(String id) async {
     await _repo.remove(id);
+    await _storage?.deleteCase(id);
     await _persist();
     notifyListeners();
   }

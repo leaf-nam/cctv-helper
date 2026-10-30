@@ -4,6 +4,7 @@
 > 상위 지침: `AGENTS.md`. 관련: `docs/architecture/architecture_spec.md`, `docs/conventions/convention.md`.
 > 1.0.0 (#1~#4)에서 `CaseFile`/`CctvSource`/`TimelineEvent` 확정.
 > 초안의 `TimeOffset`/`SyncPoint` 분리 모델은 폐기 — 오프셋은 `CctvSource` 내 계산값으로 통합.
+> 1.1.0 (#26~#28, #7)에서 사진 보관함 `CasePhoto`, `TimelineEvent.photoPaths`를 추가.
 
 ## 1. 개요
 
@@ -21,6 +22,7 @@ class StoreKeys {
   static const cases = 'cases';
   static const sources = 'sources';
   static const events = 'events';
+  static const casePhotos = 'casePhotos';
   static const settings = 'settings';
 
   /// 첫 실행 튜토리얼을 이미 봤는지 여부(bool).
@@ -95,10 +97,51 @@ class StoreKeys {
 | `displayedAt` | `DateTime` | 영상 내 표시 시각 |
 | `correctedAt` | `DateTime` | 보정 시각 (생성 시 확정, 표시 + 오프셋) |
 | `memo` | `String` | 기록 메모 |
-| `photoPath` | `String` | 사진 파일 경로 (바이너리 저장 안 함, 없으면 `''`) |
+| `photoPaths` | `List<String>` | 사진 파일 상대 경로 목록 (바이너리 저장 안 함, 없으면 `[]`) |
+| `photoPath` | `String` (getter) | 첫 번째 사진 경로 (기존 UI 호환, 없으면 `''`) |
 | `createdAt` | `DateTime` | 작성 시각 |
 
-### 4.5 `AppSettings` — 설정 (초안)
+- **호환 읽기 (1.1.0)**: 기존 데이터의 단일 `photoPath`는 `fromMap()`에서
+  `photoPaths` 목록으로 승격한다. `toMap()`은 `photoPath`(첫 장)와
+  `photoPaths`를 함께 기록해 구버전과 신버전이 모두 읽을 수 있게 한다.
+- 사진 경로는 `PhotoStorageService`가 관리하는 상대 경로
+  (`cases/<caseId>/sources/<sourceId>/...`)를 저장한다. 앱 시작 시 기존 절대
+  경로는 보관 폴더로 복사하고, 원본이 없으면 빈 목록으로 정리한다.
+
+### 4.4 `CasePhoto` — 사진 보관함 (1.1.0 확정, #28)
+
+- **위치**: `lib/features/photos/domain/case_photo.dart`
+- **성격**: 사건·CCTV별로 보관하는 사진 1장. 기준 촬영/녹화장면/기타 유형.
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `id` | `String` | 사진 ID |
+| `caseId` | `String` | 소속 사건 ID |
+| `sourceId` | `String` | 촬영 CCTV ID |
+| `kind` | `CasePhotoKind` | `baseline`(기준) / `scene`(장면) / `other`(기타) |
+| `filePath` | `String` | 보관 폴더 기준 상대 경로 (기존 절대 경로 허용) |
+| `capturedAt` | `DateTime` | 사진을 촬영·추가한 시각 |
+| `displayedAt` | `DateTime?` | 사진에 표시된 CCTV 시각 |
+| `offsetMillis` | `int?` | 촬영 시점의 CCTV 오프셋 |
+| `correctedAt` | `DateTime?` | 보정 실제시간 (표시시각 + 오프셋, 계산 불가 시 null) |
+| `memo` | `String` | 메모 |
+| `createdAt` | `DateTime` | 저장 시각 |
+
+- **정렬**: `sortAt = correctedAt ?? capturedAt` 오름차순.
+- **직렬화**: `kind`는 enum 이름 문자열로 저장하고, 알 수 없는 값은 `other`로 복원.
+- **`copyWith` 주의**: `displayedAt`/`offsetMillis`는 nullable이므로
+  `Function()?` 래퍼로 null 할당과 미변경을 구분한다.
+
+### 4.5 사진 파일 저장 규칙 (1.1.0 확정, #26)
+
+- **서비스**: `lib/core/services/photo_storage_service.dart`
+- 앱 문서 디렉터리 아래 `cases/<caseId>/sources/<sourceId>/<prefix>_<timestamp>.<ext>`
+  구조로 원본을 복사한다.
+- 모델에는 상대 경로를 저장하고, 화면 표시 시
+  `PhotoStorageService.resolve(path)`로 절대 경로를 얻는다.
+- 사건/CCTV/기록 삭제 시 관련 폴더·파일을 함께 정리한다.
+
+### 4.6 `AppSettings` — 설정 (초안)
 
 - **위치**: `lib/features/settings/domain/app_settings.dart` (예정)
 

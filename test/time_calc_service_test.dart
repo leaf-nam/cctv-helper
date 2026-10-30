@@ -7,10 +7,7 @@ void main() {
       final displayed = DateTime(2026, 10, 8, 14, 0, 0);
       final actual = DateTime(2026, 10, 8, 14, 2, 0);
       expect(
-        TimeCalcService.offsetMillis(
-          displayedAt: displayed,
-          actualAt: actual,
-        ),
+        TimeCalcService.offsetMillis(displayedAt: displayed, actualAt: actual),
         120000,
       );
     });
@@ -19,10 +16,7 @@ void main() {
       final displayed = DateTime(2026, 10, 8, 14, 2, 0);
       final actual = DateTime(2026, 10, 8, 14, 0, 30);
       expect(
-        TimeCalcService.offsetMillis(
-          displayedAt: displayed,
-          actualAt: actual,
-        ),
+        TimeCalcService.offsetMillis(displayedAt: displayed, actualAt: actual),
         -90000,
       );
     });
@@ -43,9 +37,7 @@ void main() {
         DateTime(2026, 10, 8, 14, 2, 0),
       );
       expect(
-        TimeCalcService.truncateToSecond(
-          DateTime(2026, 10, 8, 14, 0, 0, 999),
-        ),
+        TimeCalcService.truncateToSecond(DateTime(2026, 10, 8, 14, 0, 0, 999)),
         DateTime(2026, 10, 8, 14, 0, 0),
       );
     });
@@ -61,14 +53,19 @@ void main() {
     test('formatOffset 사람 읽기 쉬운 문장 (초 항상 표기·내림)', () {
       expect(TimeCalcService.formatOffset(120000), 'CCTV가 2분 0초 느림');
       expect(TimeCalcService.formatOffset(-90000), 'CCTV가 1분 30초 빠름');
-      expect(
-        TimeCalcService.formatOffset(90061000),
-        'CCTV가 1일 1시간 1분 1초 느림',
-      );
+      expect(TimeCalcService.formatOffset(90061000), 'CCTV가 1일 1시간 1분 1초 느림');
       expect(TimeCalcService.formatOffset(0), '시간 오차 없음');
       expect(TimeCalcService.formatOffset(1500), 'CCTV가 1초 느림');
       expect(TimeCalcService.formatOffset(500), 'CCTV가 0초 느림');
       expect(TimeCalcService.formatOffset(-500), 'CCTV가 0초 빠름');
+    });
+
+    test('formatOffsetShort 타임라인 배지용 짧은 표기', () {
+      expect(TimeCalcService.formatOffsetShort(0), '0초');
+      expect(TimeCalcService.formatOffsetShort(120000), '+2분');
+      expect(TimeCalcService.formatOffsetShort(-10000), '−10초');
+      expect(TimeCalcService.formatOffsetShort(3600000), '+1시간');
+      expect(TimeCalcService.formatOffsetShort(86400000), '+1일');
     });
   });
 }

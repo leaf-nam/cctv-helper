@@ -3,6 +3,7 @@ class StoreKeys {
   static const cases = 'cases';
   static const sources = 'sources';
   static const events = 'events';
+  static const casePhotos = 'casePhotos';
   static const settings = 'settings';
 
   /// 첫 실행 튜토리얼을 이미 봤는지 여부.
