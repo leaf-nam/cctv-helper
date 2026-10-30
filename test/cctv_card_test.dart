@@ -413,4 +413,25 @@ void main() {
       DateTime(2026, 10, 22, 14),
     );
   });
+
+  testWidgets('숫자만 입력해도 날짜/시간 구분자가 자동으로 들어간다', (tester) async {
+    final setup = await pumpCase(tester);
+    final dateField = find.byKey(const ValueKey('inline-date')).first;
+    final timeField = find.byKey(const ValueKey('inline-time')).first;
+
+    await tester.enterText(dateField, '20261022');
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextField>(dateField).controller!.text, '2026-10-22');
+    // 날짜만 입력한 상태에서는 경고를 띄우지 않는다.
+    expect(find.byKey(const ValueKey('inline-date-error')), findsNothing);
+
+    await tester.enterText(timeField, '140322');
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextField>(timeField).controller!.text, '14:03:22');
+    expect(find.byKey(const ValueKey('inline-time-error')), findsNothing);
+    expect(
+      setup.sources.byCase(setup.caseId).first.displayedAt,
+      DateTime(2026, 10, 22, 14, 3, 22),
+    );
+  });
 }

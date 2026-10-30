@@ -48,7 +48,8 @@ class _InlineDateTimeTextState extends State<_InlineDateTimeText> {
 
   void _validateOnBlur() {
     if (_dateFocus.hasFocus || _timeFocus.hasFocus) return;
-    _applyLive();
+    // 포커스를 잃으면 자릿수가 모자란 값도 안내한다 (입력 중에는 경고 없음).
+    _applyLive(showIncomplete: true);
   }
 
   @override
@@ -76,9 +77,15 @@ class _InlineDateTimeTextState extends State<_InlineDateTimeText> {
     super.dispose();
   }
 
-  Future<void> _applyLive() async {
-    final dateResult = validateDateInput(_dateController.text);
-    final timeResult = validateTimeInput(_timeController.text);
+  Future<void> _applyLive({bool showIncomplete = false}) async {
+    final dateResult = validateDateInput(
+      _dateController.text,
+      incompleteAsError: showIncomplete,
+    );
+    final timeResult = validateTimeInput(
+      _timeController.text,
+      incompleteAsError: showIncomplete,
+    );
     if (!mounted) return;
     setState(() {
       _dateError = dateResult.error;
@@ -113,17 +120,17 @@ class _InlineDateTimeTextState extends State<_InlineDateTimeText> {
             fontWeight: FontWeight.w500,
             fontFeatures: const [FontFeature.tabularFigures()],
           ),
-          keyboardType: TextInputType.datetime,
+          keyboardType: TextInputType.number,
           textInputAction: TextInputAction.next,
           inputFormatters: dateInputFormatters(),
           decoration: const InputDecoration(
-            hintText: '날짜 (yyyy-MM-dd)',
+            hintText: '날짜 (숫자 8자리)',
             border: InputBorder.none,
             isDense: true,
             contentPadding: EdgeInsets.zero,
           ),
           onChanged: (_) => _applyLive(),
-          onSubmitted: (_) => _applyLive(),
+          onSubmitted: (_) => _applyLive(showIncomplete: true),
         ),
         if (_dateError != null)
           Text(
@@ -143,17 +150,17 @@ class _InlineDateTimeTextState extends State<_InlineDateTimeText> {
             letterSpacing: 0.2,
             fontFeatures: [FontFeature.tabularFigures()],
           ),
-          keyboardType: TextInputType.datetime,
+          keyboardType: TextInputType.number,
           textInputAction: TextInputAction.done,
           inputFormatters: timeInputFormatters(),
           decoration: const InputDecoration(
-            hintText: '시간 (HH:mm:ss)',
+            hintText: '시간 (숫자 6자리)',
             border: InputBorder.none,
             isDense: true,
             contentPadding: EdgeInsets.zero,
           ),
           onChanged: (_) => _applyLive(),
-          onSubmitted: (_) => _applyLive(),
+          onSubmitted: (_) => _applyLive(showIncomplete: true),
         ),
         if (_timeError != null)
           Text(
