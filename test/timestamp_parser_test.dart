@@ -65,5 +65,66 @@ void main() {
       expect(list.first.pattern, 'date+time');
       expect(list.first.confidence, greaterThanOrEqualTo(list[1].confidence));
     });
+
+    group('영어 월 이름', () {
+      test('메뉴바 캡처: Fri Oct 30 9:11PM', () {
+        final result = TimestampParser.parse(
+          'Fri Oct 30\n) 9:11PM',
+          fallbackDate: DateTime(2026, 10, 30),
+        );
+        expect(result, isNotNull);
+        expect(result!.value, DateTime(2026, 10, 30, 21, 11));
+        expect(result.pattern, 'date+time');
+      });
+
+      test('OCT.30.2026 21:11:05', () {
+        final result = TimestampParser.parse('OCT.30.2026 21:11:05');
+        expect(result!.value, DateTime(2026, 10, 30, 21, 11, 5));
+      });
+
+      test('30-Oct-2026 21:11:05', () {
+        final result = TimestampParser.parse('30-Oct-2026 21:11:05');
+        expect(result!.value, DateTime(2026, 10, 30, 21, 11, 5));
+      });
+
+      test('Oct 30, 2026 09:05:00', () {
+        final result = TimestampParser.parse('Oct 30, 2026 09:05:00');
+        expect(result!.value, DateTime(2026, 10, 30, 9, 5));
+      });
+
+      test('2026 OCT 30 21:11:05 (연-월-일)', () {
+        final result = TimestampParser.parse('2026 OCT 30 21:11:05');
+        expect(result!.value, DateTime(2026, 10, 30, 21, 11, 5));
+      });
+
+      test('전체 월 이름 October도 인식', () {
+        final result = TimestampParser.parse(
+          'October 30 21:11',
+          fallbackDate: DateTime(2026, 10, 30),
+        );
+        expect(result!.value, DateTime(2026, 10, 30, 21, 11));
+      });
+
+      test('연도가 없고 미래 날짜면 작년으로 보정', () {
+        final result = TimestampParser.parse(
+          'Dec 31 23:59',
+          fallbackDate: DateTime(2026, 3, 5),
+        );
+        expect(result!.value, DateTime(2025, 12, 31, 23, 59));
+      });
+
+      test('연도가 없고 과거/같은 날이면 fallback 연도 유지', () {
+        final result = TimestampParser.parse(
+          'Mar 4 10:00',
+          fallbackDate: DateTime(2026, 3, 5),
+        );
+        expect(result!.value, DateTime(2026, 3, 4, 10));
+      });
+
+      test('범위를 벗어난 날짜는 후보 없음', () {
+        expect(TimestampParser.parse('OCT 45 2026 10:00:00'), isNull);
+        expect(TimestampParser.parse('FEB 30 2026 10:00:00'), isNull);
+      });
+    });
   });
 }

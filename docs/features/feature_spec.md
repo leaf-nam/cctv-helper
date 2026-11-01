@@ -141,7 +141,18 @@
   - `lib/features/ocr/data/ocr_service.dart` (+ ML Kit/스텁 구현)
   - `lib/features/ocr/domain/timestamp_parser.dart`
   - `lib/features/ocr/presentation/baseline_ocr_sheet.dart`
-- **검증**: 타임스탬프 파서 형식·범위 단위 테스트. 실기기 OCR은 수동 확인 필요.
+- **시각 표기 지원 (#38)**:
+  - `yyyy-MM-dd`, `yyyy/MM/dd`, `MM/dd/yyyy`, `yyyyMMdd`, 한글 단위, 14자리 압축,
+    AM/PM, 전각 문자.
+  - 영어 월 이름: `Oct 30 9:11 PM`, `OCT.30.2026 21:11:05`, `30-Oct-2026 21:11:05`,
+    `Oct 30, 2026 09:05:00`, `2026 OCT 30 21:11:05`. 약어·전체 이름 모두 허용.
+  - 영어 표기에 **연도가 없으면** fallback 날짜(없으면 오늘)의 연도를 쓰고,
+    결과가 fallback보다 하루 넘게 미래면 작년으로 보정한다 (CCTV 캡처는 과거 기록).
+  - 범위 초과(`OCT 45 2026`, `FEB 30 2026`)는 후보에서 제외.
+- **플랫폼 지원**: ML Kit는 android/ios 전용이라 macOS 데스크톱에서는 인식이
+  동작하지 않는다(플러그인에 macOS 구현 없음). 실기기·시뮬레이터에서 확인한다.
+- **검증**: 타임스탬프 파서 형식·범위·영어 월 이름·연도 추정 단위 테스트.
+  실기기 OCR은 수동 확인 필요.
 
 ## 11. 사건·CCTV별 사진 보관함 (#28, 1.1.0 구현됨)
 

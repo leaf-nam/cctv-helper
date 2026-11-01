@@ -21,6 +21,30 @@ class TimestampParser {
   );
   static final RegExp _ampm = RegExp(r'([AaPp][Mm])');
 
+  /// `JAN`~`DEC` 약어와 전체 월 이름. 대문자로 정규화한 텍스트에 사용한다.
+  static const String _monthToken =
+      r'(?:JAN(?:UARY)?|FEB(?:RUARY)?|MAR(?:CH)?|APR(?:IL)?|MAY|'
+      r'JUN(?:E)?|JUL(?:Y)?|AUG(?:UST)?|SEP(?:TEMBER)?|OCT(?:OBER)?|'
+      r'NOV(?:EMBER)?|DEC(?:EMBER)?)';
+
+  /// `OCT 30 2026`, `Oct.30.2026`, `Oct 30, 2026` (월-일[-연도]).
+  static final RegExp _dateMonthFirst = RegExp(
+    '($_monthToken)\\.?\\s*[-./ ]?\\s*(\\d{1,2})'
+    '(?:\\s*[-./,]?\\s*((?:19|20)\\d{2}))?(?!\\d)',
+  );
+
+  /// `30-OCT-2026`, `30 OCT 2026` (일-월[-연도]).
+  static final RegExp _dateDayFirst = RegExp(
+    '(?<!\\d)(\\d{1,2})\\s*[-./ ]\\s*($_monthToken)\\.?'
+    '(?:\\s*[-./,]?\\s*((?:19|20)\\d{2}))?(?!\\d)',
+  );
+
+  /// `2026 OCT 30` (연-월-일).
+  static final RegExp _dateYearFirst = RegExp(
+    '((?:19|20)\\d{2})\\s*[-./ ]\\s*($_monthToken)\\.?\\s*[-./ ]?\\s*'
+    '(\\d{1,2})(?!\\d)',
+  );
+
   /// 텍스트에서 시각 후보를 신뢰도 내림차순으로 반환한다.
   ///
   /// [fallbackDate]는 날짜 없이 시각만 인식됐을 때 사용할 날짜다.
@@ -62,13 +86,17 @@ class TimestampParser {
       }
     }
 
+    final upper = normalized.toUpperCase();
     final rawDateFound =
         _dateYmd.hasMatch(normalized) ||
         _dateMdy.hasMatch(normalized) ||
-        _dateCompact.hasMatch(normalized);
+        _dateCompact.hasMatch(normalized) ||
+        _dateMonthFirst.hasMatch(upper) ||
+        _dateDayFirst.hasMatch(upper) ||
+        _dateYearFirst.hasMatch(upper);
     final rawTimeFound =
         _time.hasMatch(normalized) || _timeCompact.hasMatch(normalized);
-    final date = _findDate(normalized);
+    final date = _findDate(normalized, fallbackDate: fallbackDate);
     final time = _findTime(normalized);
 
     // 날짜/시각 형태가 보이는데 범위를 벗어난 값이면 후보를 만들지 않는다.
@@ -168,7 +196,7 @@ class TimestampParser {
         .trim();
   }
 
-  static _FoundDate? _findDate(String text) {
+  static _FoundDate? _findDate(String text, {DateTime? fallbackDate}) {
     // yyyy-MM-dd
     final ymd = _dateYmd.firstMatch(text);
     if (ymd != null) {
@@ -191,7 +219,81 @@ class TimestampParser {
       );
       if (date != null) return _FoundDate(date, 0.8);
     }
+
+    // 영어 월 이름 표기 (OCT 30 2026, OCT.30.2026, 30-OCT-2026 ...)
+    final upper = text.toUpperCase();
+    final yearFirst = _dateYearFirst.firstMatch(upper);
+    if (yearFirst != null) {
+      final date = _makeDate(
+        yearFirst.group(1)!,
+        '${_monthNumber(yearFirst.group(2)!)}',
+        yearFirst.group(3)!,
+      );
+      if (date != null) return _FoundDate(date, 0.93);
+    }
+    final dayFirst = _dateDayFirst.firstMatch(upper);
+    if (dayFirst != null) {
+      final month = _monthNumber(dayFirst.group(2)!);
+      final day = int.tryParse(dayFirst.group(1)!);
+      final year = dayFirst.group(3);
+      if (day != null) {
+        final date = year != null
+            ? _makeDate(year, '$month', '$day')
+            : _inferYear(month, day, fallbackDate);
+        if (date != null) {
+          return _FoundDate(date, year != null ? 0.9 : 0.82);
+        }
+      }
+    }
+    final monthFirst = _dateMonthFirst.firstMatch(upper);
+    if (monthFirst != null) {
+      final month = _monthNumber(monthFirst.group(1)!);
+      final day = int.tryParse(monthFirst.group(2)!);
+      final year = monthFirst.group(3);
+      if (day != null) {
+        final date = year != null
+            ? _makeDate(year, '$month', '$day')
+            : _inferYear(month, day, fallbackDate);
+        if (date != null) {
+          return _FoundDate(date, year != null ? 0.9 : 0.8);
+        }
+      }
+    }
     return null;
+  }
+
+  /// `JAN`/`January` 같은 월 토큰을 1~12로 변환한다.
+  static int _monthNumber(String token) {
+    const months = {
+      'JAN': 1,
+      'FEB': 2,
+      'MAR': 3,
+      'APR': 4,
+      'MAY': 5,
+      'JUN': 6,
+      'JUL': 7,
+      'AUG': 8,
+      'SEP': 9,
+      'OCT': 10,
+      'NOV': 11,
+      'DEC': 12,
+    };
+    return months[token.substring(0, 3).toUpperCase()] ?? 0;
+  }
+
+  /// 연도가 없는 표기의 연도를 추정한다.
+  ///
+  /// [fallbackDate](없으면 오늘)의 연도를 쓰고, 그 날짜가 fallback보다
+  /// 하루 넘게 미래면 작년으로 본다. CCTV 캡처는 과거 기록이기 때문이다.
+  static DateTime? _inferYear(int month, int day, DateTime? fallbackDate) {
+    if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+    final base = fallbackDate ?? DateTime.now();
+    var value = DateTime(base.year, month, day);
+    if (value.month != month || value.day != day) return null;
+    if (value.difference(base).inDays > 1) {
+      value = DateTime(base.year - 1, month, day);
+    }
+    return value;
   }
 
   static _FoundTime? _findTime(String text) {
