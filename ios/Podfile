@@ -32,6 +32,9 @@ target 'Runner' do
   use_modular_headers!
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+
+  # ML Kit 플러그인은 라틴 모델만 포함하므로, 한국어 우선 인식을 위해 모델을 추가한다.
+  pod 'GoogleMLKit/TextRecognitionKorean', '~> 9.0.0'
   target 'RunnerTests' do
     inherit! :search_paths
   end
