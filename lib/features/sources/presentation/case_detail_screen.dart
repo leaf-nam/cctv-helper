@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../cases/providers/cases_provider.dart';
+import '../../events/providers/events_provider.dart';
+import '../../photos/providers/photos_provider.dart';
 import '../providers/sources_provider.dart';
 import 'cctv_card.dart';
 
@@ -24,6 +26,15 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
   void dispose() {
     _nameController.dispose();
     super.dispose();
+  }
+
+  Future<void> _removeSource(String id) async {
+    final photos = context.read<PhotosProvider>();
+    final events = context.read<EventsProvider>();
+    final sources = context.read<SourcesProvider>();
+    await photos.removeBySource(id);
+    await events.removeBySource(id);
+    await sources.removeSource(id);
   }
 
   Future<void> _showAddSource() async {
@@ -74,6 +85,20 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.go('/'),
         ),
+        actions: [
+          IconButton(
+            key: const ValueKey('open-timeline'),
+            icon: const Icon(Icons.timeline),
+            tooltip: '통합 타임라인',
+            onPressed: () => context.go('/case/${widget.caseId}/timeline'),
+          ),
+          IconButton(
+            key: const ValueKey('open-photos'),
+            icon: const Icon(Icons.photo_library_outlined),
+            tooltip: '사진 보관함',
+            onPressed: () => context.go('/case/${widget.caseId}/photos'),
+          ),
+        ],
       ),
       body: SafeArea(
         top: false,
@@ -97,8 +122,7 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
                     index: index,
                     onRename: (id, name) =>
                         context.read<SourcesProvider>().renameSource(id, name),
-                    onRemove: (id) =>
-                        context.read<SourcesProvider>().removeSource(id),
+                    onRemove: _removeSource,
                     onUpdateTimes:
                         (
                           id, {

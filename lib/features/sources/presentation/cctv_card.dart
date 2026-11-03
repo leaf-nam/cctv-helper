@@ -6,8 +6,10 @@ import 'package:provider/provider.dart';
 import '../../../core/services/time_calc_service.dart';
 import '../../../core/widgets/datetime_field.dart';
 import '../../../core/widgets/time_edit_sheet.dart';
+import '../../../core/widgets/time_text.dart';
 import '../../events/domain/timeline_event.dart';
 import '../../events/providers/events_provider.dart';
+import '../../ocr/presentation/baseline_ocr_sheet.dart';
 import '../../sources/domain/cctv_source.dart';
 import 'event_sheet.dart';
 
@@ -31,13 +33,23 @@ class _InlineDateTimeTextState extends State<_InlineDateTimeText> {
   late final TextEditingController _timeController;
   final FocusNode _dateFocus = FocusNode();
   final FocusNode _timeFocus = FocusNode();
+  String? _dateError;
+  String? _timeError;
 
   @override
   void initState() {
     super.initState();
     _dateController = TextEditingController();
     _timeController = TextEditingController();
+    _dateFocus.addListener(_validateOnBlur);
+    _timeFocus.addListener(_validateOnBlur);
     _syncControllers();
+  }
+
+  void _validateOnBlur() {
+    if (_dateFocus.hasFocus || _timeFocus.hasFocus) return;
+    // 포커스를 잃으면 자릿수가 모자란 값도 안내한다 (입력 중에는 경고 없음).
+    _applyLive(showIncomplete: true);
   }
 
   @override
@@ -52,6 +64,8 @@ class _InlineDateTimeTextState extends State<_InlineDateTimeText> {
     final time = widget.value == null ? '' : formatTime(widget.value);
     if (_dateController.text != date) _dateController.text = date;
     if (_timeController.text != time) _timeController.text = time;
+    _dateError = null;
+    _timeError = null;
   }
 
   @override
@@ -63,9 +77,22 @@ class _InlineDateTimeTextState extends State<_InlineDateTimeText> {
     super.dispose();
   }
 
-  Future<void> _applyLive() async {
-    final date = parseDateInput(_dateController.text);
-    final time = parseTimeInput(_timeController.text);
+  Future<void> _applyLive({bool showIncomplete = false}) async {
+    final dateResult = validateDateInput(
+      _dateController.text,
+      incompleteAsError: showIncomplete,
+    );
+    final timeResult = validateTimeInput(
+      _timeController.text,
+      incompleteAsError: showIncomplete,
+    );
+    if (!mounted) return;
+    setState(() {
+      _dateError = dateResult.error;
+      _timeError = timeResult.error;
+    });
+    final date = dateResult.value;
+    final time = timeResult.value;
     if (date == null || time == null) return;
     final parsed = DateTime(
       date.year,
@@ -89,36 +116,60 @@ class _InlineDateTimeTextState extends State<_InlineDateTimeText> {
           key: const ValueKey('inline-date'),
           controller: _dateController,
           focusNode: _dateFocus,
-          style: theme.textTheme.bodySmall,
-          keyboardType: TextInputType.datetime,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w500,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+          keyboardType: TextInputType.number,
           textInputAction: TextInputAction.next,
+          inputFormatters: dateInputFormatters(),
           decoration: const InputDecoration(
-            hintText: '날짜',
+            hintText: '날짜 (숫자 8자리)',
             border: InputBorder.none,
             isDense: true,
             contentPadding: EdgeInsets.zero,
           ),
           onChanged: (_) => _applyLive(),
-          onSubmitted: (_) => _applyLive(),
+          onSubmitted: (_) => _applyLive(showIncomplete: true),
         ),
+        if (_dateError != null)
+          Text(
+            _dateError!,
+            key: const ValueKey('inline-date-error'),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.error,
+            ),
+          ),
         TextField(
           key: const ValueKey('inline-time'),
           controller: _timeController,
           focusNode: _timeFocus,
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontFeatures: const [FontFeature.tabularFigures()],
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.2,
+            fontFeatures: [FontFeature.tabularFigures()],
           ),
-          keyboardType: TextInputType.datetime,
+          keyboardType: TextInputType.number,
           textInputAction: TextInputAction.done,
+          inputFormatters: timeInputFormatters(),
           decoration: const InputDecoration(
-            hintText: '시간',
+            hintText: '시간 (숫자 6자리)',
             border: InputBorder.none,
             isDense: true,
             contentPadding: EdgeInsets.zero,
           ),
           onChanged: (_) => _applyLive(),
-          onSubmitted: (_) => _applyLive(),
+          onSubmitted: (_) => _applyLive(showIncomplete: true),
         ),
+        if (_timeError != null)
+          Text(
+            _timeError!,
+            key: const ValueKey('inline-time-error'),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.error,
+            ),
+          ),
       ],
     );
   }
@@ -295,13 +346,9 @@ class _CctvCardState extends State<CctvCard> {
           ),
         ),
         Expanded(
-          child: Text(
-            '${formatDate(value)} ${formatTime(value)}',
+          child: KeyedSubtree(
             key: timeKey,
-            maxLines: 1,
-            softWrap: false,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodySmall,
+            child: DateTimeInlineText(value: value),
           ),
         ),
       ],
@@ -310,19 +357,7 @@ class _CctvCardState extends State<CctvCard> {
 
   /// 날짜/시간을 두 줄로 표시한다. 시간은 초까지 고정폭 숫자로 보여 준다.
   Widget _twoLineDisplay(DateTime? value) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(formatDate(value), style: theme.textTheme.bodySmall),
-        Text(
-          formatTime(value),
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontFeatures: const [FontFeature.tabularFigures()],
-          ),
-        ),
-      ],
-    );
+    return DateTimeText(value: value);
   }
 
   Future<void> _rename(BuildContext context) async {
@@ -398,6 +433,21 @@ class _CctvCardState extends State<CctvCard> {
     final trimmed = result.trim();
     if (trimmed == event.memo) return;
     await context.read<EventsProvider>().updateMemo(event.id, trimmed);
+  }
+
+  /// 기준 촬영 사진 2장으로 실제시간·CCTV 시각을 한 번에 채운다 (#27 A).
+  Future<void> _openBaselineOcr() async {
+    final result = await showBaselineOcrSheet(
+      context,
+      caseId: widget.caseId,
+      source: _source,
+    );
+    if (result == null || !mounted) return;
+    await widget.onUpdateTimes(
+      _source.id,
+      displayedAt: () => result.displayedAt,
+      actualAt: () => result.actualAt,
+    );
   }
 
   /// 시각 편집 시트 열기. `displayed`가 false면 실제 시각.
@@ -637,6 +687,25 @@ class _CctvCardState extends State<CctvCard> {
                                     style: Theme.of(context)
                                         .textTheme
                                         .labelSmall,
+                                  ),
+                                  const Spacer(),
+                                  TextButton.icon(
+                                    key: ValueKey('baseline-ocr-${_source.id}'),
+                                    icon: const Icon(
+                                      Icons.document_scanner,
+                                      size: 16,
+                                    ),
+                                    label: const Text('사진으로 입력'),
+                                    style: TextButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                      ),
+                                      minimumSize: const Size(0, 32),
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                      textStyle: const TextStyle(fontSize: 12),
+                                    ),
+                                    onPressed: _openBaselineOcr,
                                   ),
                                 ],
                               ),

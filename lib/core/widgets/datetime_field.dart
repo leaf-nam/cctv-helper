@@ -1,4 +1,7 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 /// 날짜+시간 선택 헬퍼. 취소하면 null.
 ///
@@ -341,4 +344,242 @@ DateTime? _makeDateTime(
     return null;
   }
   return value;
+}
+
+/// 숫자만 입력하면 구분자까지 자동으로 채워 주는 포매터 (#36).
+///
+/// 사용자는 숫자만 누르면 되고, 그룹이 찰 때 `-`/`:`가 자동으로 들어간다.
+/// 예) 날짜 `20261022` → `2026-10-22`, 시간 `140322` → `14:03:22`.
+/// 구분자를 지우면(백스페이스) 앞 숫자까지 함께 지워 자연스럽게 줄어든다.
+class GroupedDigitsInputFormatter extends TextInputFormatter {
+  GroupedDigitsInputFormatter({required this.groups, required this.separator})
+    : assert(groups.isNotEmpty);
+
+  /// 앞에서부터의 자릿수 그룹. 예) 날짜 `[4, 2, 2]`, 시간 `[2, 2, 2]`.
+  final List<int> groups;
+  final String separator;
+
+  /// 입력 가능한 최대 자릿수.
+  int get maxDigits => groups.fold(0, (sum, value) => sum + value);
+
+  /// 문자열에서 숫자만 남긴다.
+  static String digitsOnly(String text) =>
+      text.replaceAll(RegExp(r'[^0-9]'), '');
+
+  /// 숫자열을 구분자가 포함된 표시 문자열로 바꾼다.
+  ///
+  /// 그룹이 꽉 차고 뒤 그룹이 남아 있으면 구분자를 미리 보여 준다
+  /// (`14` → `14:`).
+  String format(String digits) {
+    final buffer = StringBuffer();
+    var index = 0;
+    for (var g = 0; g < groups.length; g++) {
+      if (index >= digits.length) break;
+      if (g > 0) buffer.write(separator);
+      final take = math.min(groups[g], digits.length - index);
+      buffer.write(digits.substring(index, index + take));
+      index += take;
+      if (index >= digits.length &&
+          g < groups.length - 1 &&
+          take == groups[g]) {
+        buffer.write(separator);
+      }
+    }
+    return buffer.toString();
+  }
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final oldDigits = digitsOnly(oldValue.text);
+    var digits = digitsOnly(newValue.text);
+    var cursor = newValue.selection.baseOffset;
+    if (cursor < 0 || cursor > newValue.text.length) {
+      cursor = newValue.text.length;
+    }
+    var digitsBeforeCursor = _digitCount(newValue.text, cursor);
+
+    // 최대 자릿수를 넘는 입력(붙여넣기 포함)은 잘라낸다.
+    if (digits.length > maxDigits) {
+      digits = digits.substring(0, maxDigits);
+      digitsBeforeCursor = math.min(digitsBeforeCursor, digits.length);
+    }
+
+    // 숫자는 그대로인데 길이만 줄었다면 구분자를 지운 것이므로
+    // 앞 숫자까지 함께 지운다.
+    if (digits == oldDigits && newValue.text.length < oldValue.text.length) {
+      final removedAt = _firstDifference(oldValue.text, newValue.text);
+      final before = _digitCount(oldValue.text, removedAt);
+      if (before > 0 && before <= digits.length) {
+        digits = digits.replaceRange(before - 1, before, '');
+        if (digitsBeforeCursor >= before) digitsBeforeCursor--;
+      }
+    }
+
+    final text = format(digits);
+    final offset = digitsBeforeCursor.clamp(0, digits.length);
+    var position = 0;
+    var seen = 0;
+    while (position < text.length && seen < offset) {
+      if (_isDigit(text[position])) seen++;
+      position++;
+    }
+    // 자동으로 들어간 구분자 뒤로 커서를 넘겨 다음 숫자를 바로 받게 한다.
+    if (position < text.length && text[position] == separator) {
+      position++;
+    }
+    return TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: position),
+    );
+  }
+
+  static bool _isDigit(String char) {
+    final code = char.codeUnitAt(0);
+    return code >= 0x30 && code <= 0x39;
+  }
+
+  static int _digitCount(String text, int end) {
+    final limit = end.clamp(0, text.length);
+    var count = 0;
+    for (var i = 0; i < limit; i++) {
+      if (_isDigit(text[i])) count++;
+    }
+    return count;
+  }
+
+  static int _firstDifference(String oldText, String newText) {
+    final limit = math.min(oldText.length, newText.length);
+    for (var i = 0; i < limit; i++) {
+      if (oldText[i] != newText[i]) return i;
+    }
+    return limit;
+  }
+}
+
+/// 날짜 직접 입력용 포매터. 숫자만 받고 `yyyy-MM-dd` 구분자를 자동 삽입한다.
+List<TextInputFormatter> dateInputFormatters() => [
+  GroupedDigitsInputFormatter(groups: const [4, 2, 2], separator: '-'),
+];
+
+/// 시간 직접 입력용 포매터. 숫자만 받고 `HH:mm:ss` 구분자를 자동 삽입한다.
+List<TextInputFormatter> timeInputFormatters() => [
+  GroupedDigitsInputFormatter(groups: const [2, 2, 2], separator: ':'),
+];
+
+/// 직접 입력 검증 결과.
+class DateTimeInputValidation {
+  const DateTimeInputValidation.empty()
+    : value = null,
+      error = null,
+      incomplete = false;
+
+  const DateTimeInputValidation.valid(this.value)
+    : error = null,
+      incomplete = false;
+
+  const DateTimeInputValidation.invalid(this.error)
+    : value = null,
+      incomplete = false;
+
+  /// 아직 자릿수가 모자란 상태. [error]가 null이면 경고를 띄우지 않는다.
+  const DateTimeInputValidation.incomplete([this.error])
+    : value = null,
+      incomplete = true;
+
+  final DateTime? value;
+  final String? error;
+
+  /// 입력이 덜 끝난 상태(범위 오류 아님).
+  final bool incomplete;
+
+  bool get isEmpty => value == null && error == null;
+  bool get isValid => value != null;
+}
+
+/// 날짜 직접 입력 검증 (#36).
+///
+/// 숫자 8자리를 모두 채우기 전에는 경고하지 않고([incomplete]),
+/// 1900~2100년 범위를 벗어나거나 존재하지 않는 날짜일 때만 오류를 준다.
+/// [incompleteAsError]는 포커스를 잃었을 때 미완성 안내를 보여 줄 때 쓴다.
+DateTimeInputValidation validateDateInput(
+  String raw, {
+  bool incompleteAsError = false,
+}) {
+  final text = raw.trim();
+  if (text.isEmpty) return const DateTimeInputValidation.empty();
+  final parsed = parseDateInput(text);
+  if (parsed != null) return DateTimeInputValidation.valid(parsed);
+
+  final digits = GroupedDigitsInputFormatter.digitsOnly(text);
+  if (digits.length < 8) {
+    final rangeError = _dateRangeError(digits);
+    if (rangeError != null) return DateTimeInputValidation.invalid(rangeError);
+    return incompleteAsError
+        ? const DateTimeInputValidation.incomplete('연월일 8자리를 입력하세요.')
+        : const DateTimeInputValidation.incomplete();
+  }
+  return const DateTimeInputValidation.invalid(
+    '날짜 범위를 확인하세요 (1900~2100년, 실제 존재하는 날짜).',
+  );
+}
+
+/// 부분 입력 상태에서 이미 범위를 벗어난 값이면 오류 문구를 돌려준다.
+String? _dateRangeError(String digits) {
+  if (digits.length >= 4) {
+    final year = int.parse(digits.substring(0, 4));
+    if (year < 1900 || year > 2100) {
+      return '연도 범위를 확인하세요 (1900~2100년).';
+    }
+  }
+  if (digits.length >= 6) {
+    final month = int.parse(digits.substring(4, 6));
+    if (month < 1 || month > 12) return '월 범위를 확인하세요 (1~12월).';
+  }
+  return null;
+}
+
+/// 시간 직접 입력 검증 (#36).
+///
+/// 시 0~23, 분/초 0~59를 벗어날 때만 오류를 주고, 자릿수가 모자라면
+/// 경고 없이 [DateTimeInputValidation.incomplete]로 돌려준다.
+DateTimeInputValidation validateTimeInput(
+  String raw, {
+  bool incompleteAsError = false,
+}) {
+  final text = raw.trim();
+  if (text.isEmpty) return const DateTimeInputValidation.empty();
+  final parsed = parseTimeInput(text);
+  if (parsed != null) return DateTimeInputValidation.valid(parsed);
+
+  final digits = GroupedDigitsInputFormatter.digitsOnly(text);
+  final rangeError = _timeRangeError(digits);
+  if (rangeError != null) return DateTimeInputValidation.invalid(rangeError);
+  if (digits.length < 6) {
+    return incompleteAsError
+        ? const DateTimeInputValidation.incomplete('시분초 6자리를 입력하세요.')
+        : const DateTimeInputValidation.incomplete();
+  }
+  return const DateTimeInputValidation.invalid(
+    '시간 범위를 확인하세요 (00~23시, 00~59분/초).',
+  );
+}
+
+/// 부분 입력 상태에서 이미 범위를 벗어난 시/분/초를 찾는다.
+String? _timeRangeError(String digits) {
+  if (digits.length >= 2) {
+    final hour = int.parse(digits.substring(0, 2));
+    if (hour > 23) return '시 범위를 확인하세요 (00~23시).';
+  }
+  if (digits.length >= 4) {
+    final minute = int.parse(digits.substring(2, 4));
+    if (minute > 59) return '분 범위를 확인하세요 (00~59분).';
+  }
+  if (digits.length >= 6) {
+    final second = int.parse(digits.substring(4, 6));
+    if (second > 59) return '초 범위를 확인하세요 (00~59초).';
+  }
+  return null;
 }

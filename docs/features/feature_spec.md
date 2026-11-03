@@ -82,11 +82,18 @@
 - **구현 상태**: 미구현.
 - **향후 과제**: 지도 패키지 선정 (아키텍처 이슈로 분리).
 
-## 7. 그래프·타임라인 표시 (#7, 미구현)
+## 7. 통합 보정 타임라인 (#7, 1.1.0 구현됨)
 
-- **요구**: 전체 이벤트를 보정시각 기준으로 그래프·타임라인 표시.
-- **구현 상태**: 미구현 (사건별 보정시각 정렬 조회는 #3에서 선행 구현됨).
-- **향후 과제**: 차트 패키지 선정, 사건 단위 통합 타임라인 화면.
+- **요구**: 사건 하나의 모든 CCTV 기록·사진을 보정된 실제시간 기준으로 통합 정렬.
+- **구현 상태**: 구현됨.
+- **동작**:
+  - `/case/:id/timeline` 라우트, 사건 상세 앱바의 타임라인 버튼으로 진입.
+  - `TimelineEntry.build()`가 `TimelineEvent`와 `CasePhoto`를 보정시각 오름차순으로 합친다.
+  - 날짜별 헤더(건수 포함), 시간축(초 단위), CCTV별 색상·필터 칩, 썸네일,
+    오프셋 배지, 빈 상태 안내.
+  - 항목 탭 → 상세 시트(CCTV 시각·보정 실제시간·오프셋·메모·사진).
+  - `ListView.builder`로 100건 이상에서도 스크롤 성능 유지.
+  - 그래프 뷰는 목록형 타임라인 이후 후속 검토.
 
 ## 8. 첫 실행 튜토리얼 (#25, #33, 1.0.1 구현됨)
 
@@ -108,7 +115,89 @@
   - `lib/core/constants/store_keys.dart` (`tutorialSeen`)
   - `assets/tutorial/01-cases.png` … `04-records.png` (`pubspec.yaml` assets)
 
-## 9. 기능-코드 매핑표
+## 9. 사진 파일 로컬 보관 인프라 (#26, 1.1.0 구현됨)
+
+- **요구**: OS 캐시 정리로 사진이 유실되지 않도록 앱 문서 디렉터리에 보관한다.
+- **구현 상태**: 구현됨.
+- **관련 코드**:
+  - `lib/core/services/photo_storage_service.dart` (`PhotoStorageService`)
+  - 저장 구조: `cases/<caseId>/sources/<sourceId>/<prefix>_<timestamp>.<ext>`
+  - `TimelineEvent.photoPaths` (기존 `photoPath` 호환 읽기), `CasePhoto.filePath`
+  - 앱 시작 시 기존 절대 경로 → 상대 경로 마이그레이션, 원본 유실 시 placeholder
+  - 사건/CCTV/기록 삭제 시 파일 정리, 보관 용량 계산(`totalBytes`)
+- **검증**: temp 디렉터리 단위 테스트, 마이그레이션·삭제 테스트.
+
+## 10. OCR 시간 자동 인식 (#27, 1.1.0 구현됨)
+
+- **요구**: 실제시간 화면/CCTV LIVE 화면/녹화장면 사진에서 시각을 인식한다.
+- **구현 상태**: 구현됨 (온디바이스 ML Kit, 모바일 전용).
+- **동작**:
+  - A. 기준 촬영: CCTV 카드 `사진으로 입력` → 실제시간·CCTV 사진 2장을 각각 OCR →
+    후보 시각 표시 → 사용자 확인·수정 → `적용` 시 오프셋 저장 + 기준 사진 보관.
+  - B. 녹화장면: 기록 시트/사진 추가 시트의 `사진에서 시각 인식` → CCTV 시각 후보 →
+    저장된 오프셋으로 보정 실제시간 산출. 자동 확정하지 않는다.
+  - 인식 실패·권한 거부·저화질: 수동 입력 fallback과 안내 문구.
+- **관련 코드**:
+  - `lib/features/ocr/data/ocr_service.dart` (+ ML Kit/스텁 구현)
+  - `lib/features/ocr/domain/timestamp_parser.dart`
+  - `lib/features/ocr/presentation/baseline_ocr_sheet.dart`
+- **시각 표기 지원 (#38)**:
+  - `yyyy-MM-dd`, `yyyy/MM/dd`, `MM/dd/yyyy`, `yyyyMMdd`, 한글 단위, 14자리 압축,
+    AM/PM, 전각 문자.
+  - 영어 월 이름: `Oct 30 9:11 PM`, `OCT.30.2026 21:11:05`, `30-Oct-2026 21:11:05`,
+    `Oct 30, 2026 09:05:00`, `2026 OCT 30 21:11:05`. 약어·전체 이름 모두 허용.
+  - 영어 표기에 **연도가 없으면** fallback 날짜(없으면 오늘)의 연도를 쓰고,
+    결과가 fallback보다 하루 넘게 미래면 작년으로 보정한다 (CCTV 캡처는 과거 기록).
+  - 범위 초과(`OCT 45 2026`, `FEB 30 2026`)는 후보에서 제외.
+- **플랫폼 지원**: ML Kit는 android/ios 전용이라 macOS 데스크톱에서는 인식이
+  동작하지 않는다(플러그인에 macOS 구현 없음). 실기기·시뮬레이터에서 확인한다.
+- **검증**: 타임스탬프 파서 형식·범위·영어 월 이름·연도 추정 단위 테스트.
+  실기기 OCR은 수동 확인 필요.
+
+## 11. 사건·CCTV별 사진 보관함 (#28, 1.1.0 구현됨)
+
+- **요구**: 사건별 폴더, CCTV별 그룹으로 촬영·캡처 사진을 보관한다.
+- **구현 상태**: 구현됨.
+- **동작**:
+  - `/case/:id/photos` 라우트, 사건 상세 앱바의 사진 버튼으로 진입.
+  - CCTV별 그룹 헤더(색상·오프셋·장수), 보정 실제시간 순 그리드.
+  - 카메라/앨범 추가, 유형(기준/장면/기타), 메모, OCR 시각 인식, 삭제.
+  - 사진 상세 시트: 촬영 시각·CCTV 시각·오프셋·보정 실제시간·메모, 메모 수정.
+  - CCTV 필터, 빈 상태 안내.
+- **관련 코드**: `lib/features/photos/*`, `showAddPhotoSheet()`.
+- **검증**: provider 단위 테스트(저장·정렬·정리), 화면 위젯 테스트.
+
+## 12. 시각 표시 가독성 개선 (#35, 1.1.0 구현됨)
+
+- **요구**: 날짜·시간 글자 크기를 키우고 라벨/값 구분을 명확히 한다.
+- **구현 상태**: 구현됨.
+- **동작**:
+  - 공용 `DateTimeText`/`DateTimeInlineText` (`lib/core/widgets/time_text.dart`).
+  - 날짜는 `bodyMedium` 이상 + 보조 색, 시간은 20sp(목록 16sp)·굵기 600·고정폭 숫자.
+  - 기준 카드, 시간 확인, 기록 목록, 기록 시트, 사진 보관함, 통합 타임라인에 적용.
+  - 스크린리더에는 날짜+시간을 한 문장으로 제공.
+- **검증**: 표시 크기·고정폭 위젯 테스트.
+
+## 13. 시각 직접 입력 범위 검증 (#36, 1.1.0 구현됨)
+
+- **요구**: `7777777` 같은 자릿수·범위 초과 입력을 차단하고 명확히 안내한다.
+- **구현 상태**: 구현됨.
+- **동작**:
+  - `dateInputFormatters()`/`timeInputFormatters()` = `GroupedDigitsInputFormatter`.
+    사용자는 **숫자만** 입력하고 구분자는 자동 삽입된다
+    (날짜 `20261022` → `2026-10-22`, 시간 `140322` → `14:03:22`).
+    그룹이 차면 구분자를 미리 보여 주고(`14` → `14:`), 구분자를 지우면
+    앞 숫자까지 함께 지워 자연스럽게 줄어든다. 최대 자릿수 초과분은 무시한다.
+  - `validateDateInput()`/`validateTimeInput()`: 연 1900~2100, 실제 존재하는 날짜,
+    시 0~23, 분/초 0~59.
+  - **경고는 범위를 벗어날 때만** 표시한다. 자릿수가 모자란 입력 중에는 경고하지
+    않고(`incomplete`), 포커스를 잃거나 제출할 때만 "8자리를 입력하세요"류 안내를 준다.
+  - 인라인 직접 입력: 오류 문구 표시 + 유효하지 않은 값 저장 차단.
+  - 시각 편집 시트의 6칸 입력도 동일 범위 규칙으로 적용 차단(각 칸 숫자만).
+- **검증**: 마스크 포매터·검증 단위 테스트, `7777777`/`99:99:99` 및
+  자동 구분자 위젯 테스트.
+
+## 14. 기능-코드 매핑표
 
 | # | 기능 | 저장 키 | 모델 | Repository | 화면/Provider | 상태 |
 |---|------|--------|------|------------|---------------|------|
@@ -118,5 +207,10 @@
 | 4 | 사건별 CCTV 관리 | `cases`+`sources` | `CaseFile` | `CaseRepository` | `CasesScreen`·`CaseDetailScreen` | 구현됨 |
 | 5 | 검색 | — | — | — | — | 미구현 (v1.2.0 예정) |
 | 6 | 지도 | — | — | — | — | 미구현 (v1.2.0 예정) |
-| 7 | 그래프·타임라인 | `events` | `TimelineEvent` | `TimelineEventRepository` | — | 미구현 (v1.1.0 예정) |
+| 7 | 통합 타임라인 | `events`+`casePhotos` | `TimelineEntry` | `TimelineEventRepository`+`CasePhotoRepository` | `CaseTimelineScreen` | 구현됨 (1.1.0) |
 | 8 | 첫 실행 튜토리얼 | `tutorialSeen` | — | — | `TutorialScreen`, `TutorialProvider` | 구현됨 |
+| 9 | 사진 저장 인프라 (#26) | 파일 시스템 | `TimelineEvent.photoPaths` | `PhotoStorageService` | `EventsProvider`·`PhotosProvider` | 구현됨 (1.1.0) |
+| 10 | OCR 시간 인식 (#27) | — | `TimestampCandidate` | `OcrService` | `BaselineOcrSheet`, 기록 시트 | 구현됨 (모바일) |
+| 11 | 사진 보관함 (#28) | `casePhotos` | `CasePhoto` | `CasePhotoRepository` | `PhotosScreen`, `PhotosProvider` | 구현됨 (1.1.0) |
+| 12 | 시각 표시 가독성 (#35) | — | — | — | `DateTimeText` | 구현됨 (1.1.0) |
+| 13 | 입력 범위 검증 (#36) | — | — | — | `validateDateInput`/`validateTimeInput` | 구현됨 (1.1.0) |

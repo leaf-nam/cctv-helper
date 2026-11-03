@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../core/constants/store_keys.dart';
 import '../../../core/services/local_store.dart';
+import '../../../core/services/photo_storage_service.dart';
 import '../data/cctv_source_repository.dart';
 import '../domain/cctv_source.dart';
 
@@ -9,10 +10,15 @@ import '../domain/cctv_source.dart';
 class SourcesProvider extends ChangeNotifier {
   final CctvSourceRepository _repo;
   final LocalStore? _store;
+  final PhotoStorageService? _storage;
 
-  SourcesProvider([CctvSourceRepository? repo, LocalStore? store])
-    : _repo = repo ?? InMemoryCctvSourceRepository(),
-      _store = store;
+  SourcesProvider([
+    CctvSourceRepository? repo,
+    LocalStore? store,
+    PhotoStorageService? storage,
+  ]) : _repo = repo ?? InMemoryCctvSourceRepository(),
+       _store = store,
+       _storage = storage;
 
   /// 시작 시 로컬 저장분 복원.
   Future<void> load() async {
@@ -100,7 +106,11 @@ class SourcesProvider extends ChangeNotifier {
   }
 
   Future<void> removeSource(String id) async {
+    final found = _repo.getById(id);
     await _repo.remove(id);
+    if (found != null) {
+      await _storage?.deleteSource(found.caseId, id);
+    }
     await _persist();
     notifyListeners();
   }

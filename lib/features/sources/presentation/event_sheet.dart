@@ -4,9 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/widgets/datetime_field.dart';
 import '../../../core/widgets/time_edit_sheet.dart';
+import '../../../core/services/photo_storage_service.dart';
+import '../../../core/services/time_calc_service.dart';
+import '../../../core/widgets/time_text.dart';
 import '../../events/providers/events_provider.dart';
+import '../../ocr/data/ocr_service.dart';
+import '../../ocr/domain/timestamp_parser.dart';
 import '../../sources/domain/cctv_source.dart';
 
 /// 기록(메모·사진) 입력 시트 (#3).
@@ -55,8 +59,11 @@ class _EventSheetBody extends StatefulWidget {
 class _EventSheetBodyState extends State<_EventSheetBody> {
   late final TextEditingController _memoController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
+  final OcrService _ocr = createOcrService();
   late DateTime _displayed = widget.initialDisplayed;
   String _photoPath = '';
+  String? _recognizedInfo;
+  bool _recognizing = false;
   bool _saving = false;
 
   @override
@@ -65,17 +72,66 @@ class _EventSheetBodyState extends State<_EventSheetBody> {
     super.dispose();
   }
 
-  Future<void> _pickPhoto(ImageSource from) async {
+  Future<void> _pickPhoto(ImageSource from, {bool recognize = false}) async {
     try {
       final file = await _picker.pickImage(source: from);
       if (file == null) return;
       if (!mounted) return;
-      setState(() => _photoPath = file.path);
+      setState(() {
+        _photoPath = file.path;
+        _recognizedInfo = null;
+      });
+      if (recognize) await _recognize(file.path);
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('사진을 가져올 수 없습니다.')));
     }
+  }
+
+  /// 사진에서 CCTV 표시시각을 인식한다 (#27 B).
+  /// 자동 확정하지 않고 후보를 채운 뒤 사용자가 적용/수정한다.
+  Future<void> _recognize(String path) async {
+    setState(() => _recognizing = true);
+    final text = await _ocr.recognizeText(path);
+    final candidate = text == null
+        ? null
+        : TimestampParser.parse(text, fallbackDate: _displayed);
+    if (!mounted) return;
+    setState(() {
+      _recognizing = false;
+      if (candidate == null) {
+        _recognizedInfo = '시각을 인식하지 못했습니다. 직접 입력하세요.';
+      } else {
+        _displayed = candidate.value;
+        _recognizedInfo = '인식된 시각 ${candidate.confidenceLabel} · 확인 후 저장하세요.';
+      }
+    });
+  }
+
+  Future<void> _pickForRecognition() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera),
+              title: const Text('사진 찍기'),
+              onTap: () => Navigator.of(sheetContext).pop(ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('앨범에서 선택'),
+              onTap: () => Navigator.of(sheetContext).pop(ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return;
+    await _pickPhoto(source, recognize: true);
   }
 
   /// 저장 연타 가드: 첫 탭 이후 버튼을 비활성화하고 중복 호출을 막는다.
@@ -125,22 +181,7 @@ class _EventSheetBodyState extends State<_EventSheetBody> {
             Row(
               children: [
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('영상 시각', style: theme.textTheme.labelMedium),
-                      Text(
-                        formatDate(_displayed),
-                        style: theme.textTheme.bodySmall,
-                      ),
-                      Text(
-                        formatTime(_displayed),
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontFeatures: const [FontFeature.tabularFigures()],
-                        ),
-                      ),
-                    ],
-                  ),
+                  child: DateTimeText(value: _displayed, label: '영상 시각'),
                 ),
                 TextButton.icon(
                   icon: const Icon(Icons.edit_calendar),
@@ -163,6 +204,22 @@ class _EventSheetBodyState extends State<_EventSheetBody> {
                 ),
               ],
             ),
+            const SizedBox(height: 6),
+            if (widget.source.offsetMillis != null)
+              DateTimeText(
+                value: TimeCalcService.correctedAt(
+                  displayedAt: _displayed,
+                  offsetMillis: widget.source.offsetMillis!,
+                ),
+                label: '보정 실제시간',
+                compact: true,
+                timeKey: const ValueKey('event-corrected-at'),
+              )
+            else
+              Text(
+                'CCTV 오프셋이 없어 보정 실제시간을 계산할 수 없습니다.',
+                style: theme.textTheme.bodySmall,
+              ),
             TextField(
               controller: _memoController,
               decoration: const InputDecoration(labelText: '기록 메모'),
@@ -177,7 +234,7 @@ class _EventSheetBodyState extends State<_EventSheetBody> {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: Image.file(
-                        File(_photoPath),
+                        File(PhotoStorageService.resolve(_photoPath)),
                         width: 72,
                         height: 72,
                         fit: BoxFit.cover,
@@ -203,11 +260,37 @@ class _EventSheetBodyState extends State<_EventSheetBody> {
                         label: const Text('앨범에서 선택'),
                         onPressed: () => _pickPhoto(ImageSource.gallery),
                       ),
+                      const SizedBox(height: 6),
+                      FilledButton.tonalIcon(
+                        key: const ValueKey('event-ocr'),
+                        icon: _recognizing
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.document_scanner),
+                        label: const Text('사진에서 시각 인식'),
+                        onPressed: _recognizing ? null : _pickForRecognition,
+                      ),
                     ],
                   ),
                 ),
               ],
             ),
+            if (_recognizedInfo != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  _recognizedInfo!,
+                  key: const ValueKey('event-ocr-result'),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+              ),
             const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
