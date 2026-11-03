@@ -12,24 +12,31 @@
 `malssi`와 동일한 feature-based 디렉토리 구조를 사용합니다.
 
 - **진입점 (1.0.0 확정)**: `lib/main.dart`의 `main()`이 `AppShell` 실행.
-- **앱 셸 (1.0.1 확정)**: `lib/app.dart`의 `AppShell`(`StatelessWidget`)이 `MultiProvider`
-  (`CasesProvider` + `SourcesProvider` + `EventsProvider` + `TutorialProvider`)로 감싼
+- **앱 셸 (1.1.0 갱신)**: `lib/app.dart`의 `AppShell`(`StatelessWidget`)이 `MultiProvider`
+  (`CasesProvider` + `SourcesProvider` + `EventsProvider` + `PhotosProvider` +
+  `TutorialProvider`)로 감싼
   `MaterialApp.router`를 제공합니다. `flutter_localizations`의 `ko` 로케일을 고정합니다.
-- **라우팅 (1.0.1 확정)**: `lib/routing/app_router.dart`의 `appRouter`(`GoRouter`, `initialLocation: '/'`).
+- **라우팅 (1.1.0 갱신)**: `lib/routing/app_router.dart`의 `appRouter`(`GoRouter`, `initialLocation: '/'`).
   라우트: `/` (`CasesScreen`, 사건 목록), `/case/:id` (`CaseDetailScreen`, CCTV 관리),
+  `/case/:id/photos` (`PhotosScreen`, CCTV별 사진 보관함),
+  `/case/:id/timeline` (`CaseTimelineScreen`, 통합 보정 타임라인),
   `/onboarding` (`TutorialScreen`, 첫 실행/다시 보기 튜토리얼).
   `/sources`·`/events`·`/settings` 분리 라우트는 폐기 — CCTV·기록은 사건 상세 내 카드로 통합.
 - **상태 관리**: `provider` + `ChangeNotifier` + `context.watch`/`context.read` 단일 패턴
   (`malssi`와 동일. `riverpod` 도입 금지).
 - **데이터 계층 (초안)**: feature별 `*_repository.dart` 추상 클래스 + `InMemory*` 구현체.
-- **저장 계층 (1.0.1 확정)**: 로컬 저장(`SharedPreferences` + JSON, `LocalStore`,
+- **저장 계층 (1.1.0 갱신)**: 로컬 저장(`SharedPreferences` + JSON, `LocalStore`,
   `core/services/local_store.dart`). 사건·CCTV·기록을 `StoreKeys` 키로 저장하고,
   각 Provider가 변경마다 저장·`main()` 시작 시 1회 복원한다.
   단일 bool 설정(예: `tutorialSeen`)은 `LocalStore.getBool`/`setBool`을 사용한다.
   영상 바이너리는 저장하지 않고 메타·오프셋·메모·사진 경로만 저장한다.
+  사진 파일은 앱 문서 디렉터리(`cases/<caseId>/sources/<sourceId>/`)에 보관하고
+  모델에는 상대 경로만 기록한다 (`PhotoStorageService`).
   원격 백엔드 사용 계획 없음.
-- **공용 서비스 (초안)**: `TimeCalcService` (오프셋→보정시각 계산),
-  `ExportService` (CSV/텍스트 내보내기), `LocalStore` (JSON 지속화) 후보.
+- **공용 서비스 (1.1.0 갱신)**: `TimeCalcService` (오프셋→보정시각 계산),
+  `LocalStore` (JSON 지속화), `PhotoStorageService` (사진 파일 보관·마이그레이션·정리).
+  `OcrService`(`features/ocr/data/`)는 온디바이스 ML Kit 래퍼로, 웹에서는 스텁을 쓴다.
+  `ExportService` (CSV/텍스트 내보내기)는 후보.
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -92,6 +99,8 @@ lib/
 | `go_router` | `^13.2.0` | 라우팅 | `appRouter` |
 | `shared_preferences` | `^2.5.5` | 로컬 지속화 | `LocalStore` 후보 |
 | `image_picker` | `^1.2.4` | 사진 촬영·앨범 선택 | 기록 시트 첨부 (#3) |
+| `path_provider` | `^2.1.6` | 앱 문서 디렉터리 | 사진 보관 (#26) |
+| `google_mlkit_text_recognition` | `^0.17.1` | 온디바이스 OCR | #27, 모바일 전용, iOS 15.5+ |
 | `csv` | 미확정 | 내보내기 | 도입 여부 이슈로 분리 |
 | `share_plus` | 미확정 | 내보내기 공유 | 도입 여부 이슈로 분리 |
 | `flutter_test` (`dev`) | SDK | 테스트 | `flutter test` |
@@ -116,6 +125,23 @@ lib/
 
 - 형식: CSV/텍스트 후보 (미확정).
 - 포함 필드: 보정시각, 원천 ID, 원본시각, 오프셋, 메모 (초안).
+
+### 2.4 OCR (`OcrService`, 1.1.0)
+
+- 입력: 사진 파일 경로 → 출력: 인식 텍스트(nullable).
+- `TextRecognitionScript.korean` 우선, 숫자만 있는 경우 `latin`으로 재시도.
+- 서버 전송 없음. 인식 실패·플러그인 미지원 시 null → 수동 입력 fallback.
+- `TimestampParser`가 OCR 텍스트에서 `yyyy-MM-dd HH:mm:ss`, `MM/dd/yyyy`,
+  `HH:mm:ss`, AM/PM, 한글 단위, 14자리 압축 표기를 파싱한다. 범위를 벗어난
+  값(25시, 2월 30일)은 후보에서 제외한다.
+- 자동 확정 금지: 사용자가 확인·수정 후 `적용`할 때만 오프셋/보정값을 저장한다.
+
+### 2.5 사진 보관 (`PhotoStorageService`, 1.1.0)
+
+- 루트: 앱 문서 디렉터리. 상대 경로는 `cases/<caseId>/sources/<sourceId>/...`.
+- `importFile`은 원본을 복사하고 상대 경로를 반환한다 (원본 보존).
+- `migrateLegacyPath`는 기존 절대 경로를 복사하고, 원본이 없으면 빈 문자열.
+- `deleteFile`/`deleteSource`/`deleteCase`로 고아 파일을 정리한다.
 
 ## 3. 확장 계획 (초안)
 

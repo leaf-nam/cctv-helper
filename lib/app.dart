@@ -3,10 +3,12 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
 import 'core/services/local_store.dart';
+import 'core/services/photo_storage_service.dart';
 import 'core/theme/app_theme.dart';
 import 'features/cases/providers/cases_provider.dart';
 import 'features/events/providers/events_provider.dart';
 import 'features/onboarding/providers/tutorial_provider.dart';
+import 'features/photos/providers/photos_provider.dart';
 import 'features/sources/providers/sources_provider.dart';
 import 'routing/app_router.dart';
 
@@ -14,21 +16,25 @@ import 'routing/app_router.dart';
 /// 시작 시 로컬 저장분을 각 Provider에 복원한다.
 class AppShell extends StatelessWidget {
   final LocalStore? store;
+  final PhotoStorageService? photoStorage;
 
-  const AppShell({super.key, this.store});
+  const AppShell({super.key, this.store, this.photoStorage});
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(
-          create: (_) => CasesProvider(null, store)..load(),
+          create: (_) => CasesProvider(null, store, photoStorage)..load(),
         ),
         ChangeNotifierProvider(
-          create: (_) => SourcesProvider(null, store)..load(),
+          create: (_) => SourcesProvider(null, store, photoStorage)..load(),
         ),
         ChangeNotifierProvider(
-          create: (_) => EventsProvider(null, store)..load(),
+          create: (_) => EventsProvider(null, store, photoStorage)..load(),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => PhotosProvider(null, store, photoStorage)..load(),
         ),
         ChangeNotifierProvider(create: (_) => TutorialProvider(store)..load()),
       ],

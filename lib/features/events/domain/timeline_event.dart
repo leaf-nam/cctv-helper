@@ -17,8 +17,15 @@ class TimelineEvent {
   final DateTime correctedAt;
   final String memo;
 
-  /// 사진 파일 경로 (없으면 빈 문자열).
-  final String photoPath;
+  /// 사진 파일 경로 목록 (상대 경로, 없으면 빈 목록).
+  ///
+  /// 1.1.0부터 여러 장을 보관한다. 기존 데이터의 단일 `photoPath`는
+  /// [fromMap]에서 목록으로 승격한다.
+  final List<String> photoPaths;
+
+  /// 첫 번째 사진 경로 (기존 UI 호환용, 없으면 빈 문자열).
+  String get photoPath => photoPaths.isEmpty ? '' : photoPaths.first;
+
   final DateTime createdAt;
 
   const TimelineEvent({
@@ -28,7 +35,7 @@ class TimelineEvent {
     required this.displayedAt,
     required this.correctedAt,
     this.memo = '',
-    this.photoPath = '',
+    this.photoPaths = const [],
     required this.createdAt,
   });
 
@@ -39,9 +46,11 @@ class TimelineEvent {
     required DateTime displayedAt,
     String memo = '',
     String photoPath = '',
+    List<String> photoPaths = const [],
   }) {
     final now = DateTime.now();
     final offset = source.offsetMillis ?? 0;
+    final paths = _mergePaths(photoPath, photoPaths);
     return TimelineEvent(
       id: now.microsecondsSinceEpoch.toString(),
       caseId: caseId,
@@ -52,15 +61,28 @@ class TimelineEvent {
         offsetMillis: offset,
       ),
       memo: memo,
-      photoPath: photoPath,
+      photoPaths: paths,
       createdAt: now,
     );
+  }
+
+  static List<String> _mergePaths(String single, List<String> many) {
+    if (many.isNotEmpty) return List<String>.unmodifiable(many);
+    if (single.trim().isEmpty) return const [];
+    return List<String>.unmodifiable([single.trim()]);
   }
 
   factory TimelineEvent.fromMap(Map<String, dynamic> map) {
     DateTime parse(String key) =>
         DateTime.tryParse((map[key] ?? '') as String)?.toLocal() ??
         DateTime.now();
+    final many = (map['photoPaths'] as List?)
+        ?.whereType<String>()
+        .where((e) => e.isNotEmpty)
+        .toList();
+    final paths = (many == null || many.isEmpty)
+        ? _mergePaths((map['photoPath'] ?? '') as String, const [])
+        : List<String>.unmodifiable(many);
     return TimelineEvent(
       id: (map['id'] ?? '') as String,
       caseId: (map['caseId'] ?? '') as String,
@@ -68,7 +90,7 @@ class TimelineEvent {
       displayedAt: parse('displayedAt'),
       correctedAt: parse('correctedAt'),
       memo: (map['memo'] ?? '') as String,
-      photoPath: (map['photoPath'] ?? '') as String,
+      photoPaths: paths,
       createdAt: parse('createdAt'),
     );
   }
@@ -82,12 +104,18 @@ class TimelineEvent {
       'displayedAt': iso(displayedAt),
       'correctedAt': iso(correctedAt),
       'memo': memo,
+      // 기존 버전 호환: 단일 경로도 함께 기록한다.
       'photoPath': photoPath,
+      'photoPaths': photoPaths,
       'createdAt': iso(createdAt),
     };
   }
 
-  TimelineEvent copyWith({String? memo, String? photoPath}) {
+  TimelineEvent copyWith({
+    String? memo,
+    String? photoPath,
+    List<String>? photoPaths,
+  }) {
     return TimelineEvent(
       id: id,
       caseId: caseId,
@@ -95,7 +123,11 @@ class TimelineEvent {
       displayedAt: displayedAt,
       correctedAt: correctedAt,
       memo: memo ?? this.memo,
-      photoPath: photoPath ?? this.photoPath,
+      photoPaths: photoPaths != null
+          ? List<String>.unmodifiable(photoPaths)
+          : photoPath != null
+          ? _mergePaths(photoPath, const [])
+          : this.photoPaths,
       createdAt: createdAt,
     );
   }

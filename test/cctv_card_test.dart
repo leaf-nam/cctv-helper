@@ -104,7 +104,8 @@ void main() {
     expect(find.text('15:02:00'), findsOneWidget);
 
     // 기록 추가 시 확인된 시간이 초기값으로 들어감
-    await tester.tap(find.widgetWithText(FilledButton, '기록 추가'));
+    // (1.1.0에서 카드 내용이 늘어 스크롤이 필요할 수 있다)
+    await tapVisible(tester, find.widgetWithText(FilledButton, '기록 추가'));
     await tester.pumpAndSettle();
     expect(find.text('영상 시각'), findsOneWidget);
     expect(find.text('15:00:00'), findsWidgets);
@@ -374,5 +375,63 @@ void main() {
     await tapVisible(tester, find.byKey(const ValueKey('time-apply')));
     final updated = setup.sources.byCase(setup.caseId).first.actualAt!;
     expect(updated.second, greaterThanOrEqualTo(2));
+  });
+
+  testWidgets('직접 입력 초과값(7777777)을 차단하고 오류를 표시', (tester) async {
+    final setup = await pumpCase(tester);
+
+    await tester.enterText(
+      find.byKey(const ValueKey('inline-date')).first,
+      '7777777',
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('inline-date-error')), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const ValueKey('inline-time')).first,
+      '99:99:99',
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('inline-time-error')), findsOneWidget);
+    // 범위를 벗어난 값은 저장되지 않는다.
+    expect(setup.sources.byCase(setup.caseId).first.displayedAt, isNull);
+
+    // 유효한 값은 즉시 반영된다.
+    await tester.enterText(
+      find.byKey(const ValueKey('inline-date')).first,
+      '2026-10-22',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('inline-time')).first,
+      '14:00:00',
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('inline-date-error')), findsNothing);
+    expect(find.byKey(const ValueKey('inline-time-error')), findsNothing);
+    expect(
+      setup.sources.byCase(setup.caseId).first.displayedAt,
+      DateTime(2026, 10, 22, 14),
+    );
+  });
+
+  testWidgets('숫자만 입력해도 날짜/시간 구분자가 자동으로 들어간다', (tester) async {
+    final setup = await pumpCase(tester);
+    final dateField = find.byKey(const ValueKey('inline-date')).first;
+    final timeField = find.byKey(const ValueKey('inline-time')).first;
+
+    await tester.enterText(dateField, '20261022');
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextField>(dateField).controller!.text, '2026-10-22');
+    // 날짜만 입력한 상태에서는 경고를 띄우지 않는다.
+    expect(find.byKey(const ValueKey('inline-date-error')), findsNothing);
+
+    await tester.enterText(timeField, '140322');
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextField>(timeField).controller!.text, '14:03:22');
+    expect(find.byKey(const ValueKey('inline-time-error')), findsNothing);
+    expect(
+      setup.sources.byCase(setup.caseId).first.displayedAt,
+      DateTime(2026, 10, 22, 14, 3, 22),
+    );
   });
 }
