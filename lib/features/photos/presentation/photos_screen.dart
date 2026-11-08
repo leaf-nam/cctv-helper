@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../../../core/services/photo_storage_service.dart';
 import '../../../core/services/time_calc_service.dart';
 import '../../../core/theme/source_palette.dart';
+import '../../../core/widgets/modal_sheet.dart';
 import '../../../core/widgets/datetime_field.dart';
 import '../../../core/widgets/time_text.dart';
 import '../../cases/providers/cases_provider.dart';
@@ -15,6 +16,7 @@ import '../../sources/providers/sources_provider.dart';
 import '../domain/case_photo.dart';
 import '../providers/photos_provider.dart';
 import 'add_photo_sheet.dart';
+import 'photo_viewer.dart';
 
 /// 사건·CCTV별 사진 보관함 화면 (`/case/:id/photos`, #28).
 class PhotosScreen extends StatefulWidget {
@@ -262,13 +264,25 @@ class _Section extends StatelessWidget {
                 itemBuilder: (context, i) => _PhotoTile(
                   photo: photos[i],
                   color: color,
-                  onTap: () => _showDetail(context, photos[i]),
+                  onTap: () => _openViewer(context, photos[i]),
                 ),
               );
             },
           ),
         ),
       ],
+    );
+  }
+
+  /// 사진을 누르면 상세 시트 대신 바로 전체화면으로 연다 (#46).
+  Future<void> _openViewer(BuildContext context, CasePhoto photo) async {
+    final index = sources.indexWhere((e) => e.id == sourceId);
+    final source = index >= 0 ? sources[index] : null;
+    await showPhotoViewer(
+      context,
+      photo: photo,
+      sourceName: source?.name ?? 'CCTV 미지정',
+      onShowDetail: () => _showDetail(context, photo),
     );
   }
 
@@ -448,7 +462,7 @@ class _PhotoDetailSheetState extends State<_PhotoDetailSheet> {
     }
     return SingleChildScrollView(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+        padding: modalSheetPadding(context, extra: 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -97,18 +97,21 @@ class TimestampParser {
     final rawTimeFound =
         _time.hasMatch(normalized) || _timeCompact.hasMatch(normalized);
     final date = _findDate(normalized, fallbackDate: fallbackDate);
-    final time = _findTime(normalized);
+    final times = _findTimes(normalized);
 
     // 날짜/시각 형태가 보이는데 범위를 벗어난 값이면 후보를 만들지 않는다.
     // (예: 2월 30일, 25시) 잘못된 값을 조용히 보정하지 않기 위함.
     if (rawDateFound && date == null) return const [];
-    if (rawTimeFound && time == null) return const [];
+    if (rawTimeFound && times.isEmpty) return const [];
 
     final results = <TimestampCandidate>[];
 
-    if (date != null && time != null) {
-      final combined = _combine(date.value, time.value);
-      if (combined != null) {
+    // 한 사진에 시각이 여러 개(예: CCTV 화면 시각 + 실제 시계) 있으면
+    // 각각을 후보로 만든다 (#42).
+    if (date != null) {
+      for (final time in times) {
+        final combined = _combine(date.value, time.value);
+        if (combined == null) continue;
         results.add(
           TimestampCandidate(
             value: combined,
@@ -121,8 +124,6 @@ class TimestampParser {
           ),
         );
       }
-    }
-    if (date != null) {
       results.add(
         TimestampCandidate(
           value: date.value,
@@ -132,19 +133,18 @@ class TimestampParser {
         ),
       );
     }
-    if (time != null) {
-      final base = fallbackDate ?? DateTime.now();
-      final value = DateTime(
-        base.year,
-        base.month,
-        base.day,
-        time.value.hour,
-        time.value.minute,
-        time.value.second,
-      );
+    final base = fallbackDate ?? DateTime.now();
+    for (final time in times) {
       results.add(
         TimestampCandidate(
-          value: value,
+          value: DateTime(
+            base.year,
+            base.month,
+            base.day,
+            time.value.hour,
+            time.value.minute,
+            time.value.second,
+          ),
           raw: text.trim(),
           confidence: time.confidence * 0.65,
           pattern: 'time',
@@ -152,7 +152,10 @@ class TimestampParser {
       );
     }
     results.sort((a, b) => b.confidence.compareTo(a.confidence));
-    return results;
+
+    // 같은 시각이 날짜+시각/시각 형식으로 중복되면 신뢰도 높은 것만 남긴다.
+    final seen = <DateTime>{};
+    return results.where((c) => seen.add(c.value)).toList();
   }
 
   /// 가장 신뢰도 높은 후보 1개. 없으면 null.
@@ -296,9 +299,12 @@ class TimestampParser {
     return value;
   }
 
-  static _FoundTime? _findTime(String text) {
-    final match = _time.firstMatch(text);
-    if (match != null) {
+  /// 텍스트에 나온 유효한 시각을 모두 찾는다 (#42).
+  ///
+  /// `HH:mm(:ss)` 표기가 하나도 없을 때만 `HHmmss` 압축 표기를 사용한다.
+  static List<_FoundTime> _findTimes(String text) {
+    final results = <_FoundTime>[];
+    for (final match in _time.allMatches(text)) {
       var hour = int.parse(match.group(1)!);
       final minute = int.parse(match.group(2)!);
       final second = int.tryParse(match.group(3) ?? '') ?? 0;
@@ -317,19 +323,22 @@ class TimestampParser {
         hour = hour % 12 + (isPm ? 12 : 0);
         confidence = (confidence + 0.02).clamp(0.0, 1.0);
       }
-      if (!_validTime(hour, minute, second)) return null;
-      return _FoundTime(DateTime(2000, 1, 1, hour, minute, second), confidence);
+      if (!_validTime(hour, minute, second)) continue;
+      results.add(
+        _FoundTime(DateTime(2000, 1, 1, hour, minute, second), confidence),
+      );
     }
+    if (results.isNotEmpty) return results;
+
     // HHmmss
-    final compact = _timeCompact.firstMatch(text);
-    if (compact != null) {
+    for (final compact in _timeCompact.allMatches(text)) {
       final hour = int.parse(compact.group(1)!);
       final minute = int.parse(compact.group(2)!);
       final second = int.parse(compact.group(3)!);
-      if (!_validTime(hour, minute, second)) return null;
-      return _FoundTime(DateTime(2000, 1, 1, hour, minute, second), 0.7);
+      if (!_validTime(hour, minute, second)) continue;
+      results.add(_FoundTime(DateTime(2000, 1, 1, hour, minute, second), 0.7));
     }
-    return null;
+    return results;
   }
 
   static bool _validTime(int hour, int minute, int second) {

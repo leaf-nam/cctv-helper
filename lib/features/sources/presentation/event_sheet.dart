@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/widgets/modal_sheet.dart';
 import '../../../core/widgets/time_edit_sheet.dart';
 import '../../../core/services/photo_storage_service.dart';
 import '../../../core/services/time_calc_service.dart';
@@ -22,6 +23,8 @@ Future<void> showEventSheet(
   String caseId,
   CctvSource source, {
   DateTime? initialDisplayed,
+  OcrService? ocrService,
+  ImagePicker? imagePicker,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -32,6 +35,8 @@ Future<void> showEventSheet(
       source: source,
       initialDisplayed:
           initialDisplayed ?? source.displayedAt ?? DateTime.now(),
+      ocrService: ocrService ?? createOcrService(),
+      imagePicker: imagePicker ?? ImagePicker(),
     ),
   );
 }
@@ -45,11 +50,15 @@ class _EventSheetBody extends StatefulWidget {
   final String caseId;
   final CctvSource source;
   final DateTime initialDisplayed;
+  final OcrService ocrService;
+  final ImagePicker imagePicker;
 
   const _EventSheetBody({
     required this.caseId,
     required this.source,
     required this.initialDisplayed,
+    required this.ocrService,
+    required this.imagePicker,
   });
 
   @override
@@ -58,8 +67,8 @@ class _EventSheetBody extends StatefulWidget {
 
 class _EventSheetBodyState extends State<_EventSheetBody> {
   late final TextEditingController _memoController = TextEditingController();
-  final ImagePicker _picker = ImagePicker();
-  final OcrService _ocr = createOcrService();
+  ImagePicker get _picker => widget.imagePicker;
+  OcrService get _ocr => widget.ocrService;
   late DateTime _displayed = widget.initialDisplayed;
   String _photoPath = '';
   String? _recognizedInfo;
@@ -110,6 +119,11 @@ class _EventSheetBodyState extends State<_EventSheetBody> {
   }
 
   Future<void> _pickForRecognition() async {
+    // 이미 첨부한 사진이 있으면 그 사진을 그대로 인식한다 (#45).
+    if (_photoPath.isNotEmpty) {
+      await _recognize(_photoPath);
+      return;
+    }
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
       builder: (sheetContext) => SafeArea(
@@ -163,12 +177,7 @@ class _EventSheetBodyState extends State<_EventSheetBody> {
     final theme = Theme.of(context);
     return SingleChildScrollView(
       child: Padding(
-        padding: EdgeInsets.only(
-          left: 16,
-          right: 16,
-          top: 16,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-        ),
+        padding: modalSheetPadding(context),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -272,7 +281,9 @@ class _EventSheetBodyState extends State<_EventSheetBody> {
                                 ),
                               )
                             : const Icon(Icons.document_scanner),
-                        label: const Text('사진에서 시각 인식'),
+                        label: Text(
+                          _photoPath.isEmpty ? '사진에서 시각 인식' : '첨부 사진에서 시각 인식',
+                        ),
                         onPressed: _recognizing ? null : _pickForRecognition,
                       ),
                     ],

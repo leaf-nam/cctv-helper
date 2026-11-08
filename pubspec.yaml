@@ -1,7 +1,7 @@
 name: cctv_helper
 description: CCTV investigation time syncing helper.
 publish_to: 'none'
-version: 1.1.0+3
+version: 1.1.1+4
 
 environment:
   sdk: ">=3.13.2 <4.0.0"

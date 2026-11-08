@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/services/time_calc_service.dart';
+import '../../../core/theme/source_palette.dart';
 import '../../../core/widgets/datetime_field.dart';
 import '../../../core/widgets/time_edit_sheet.dart';
 import '../../../core/widgets/time_text.dart';
@@ -563,6 +564,8 @@ class _CctvCardState extends State<CctvCard> {
   @override
   Widget build(BuildContext context) {
     final offset = _source.offsetMillis;
+    // 사건 내 CCTV 순서 기준 색. 사진 보관함·타임라인과 동일한 색을 쓴다.
+    final sourceColor = SourcePalette.of(widget.index);
     // 기준 시각 2개가 모두 입력돼 오프셋이 확정될 때만 하단 기능 공개.
     final ready = offset != null;
     // 기록 추가 시 쓸 시각: 시간 확인칸의 조회 시간 우선, 없으면 기준 CCTV 시각.
@@ -599,6 +602,16 @@ class _CctvCardState extends State<CctvCard> {
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         child: Row(
                           children: [
+                            Container(
+                              key: ValueKey('cctv-color-${_source.id}'),
+                              width: 10,
+                              height: 10,
+                              margin: const EdgeInsets.only(right: 8),
+                              decoration: BoxDecoration(
+                                color: sourceColor,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
                             Expanded(
                               child: Text(
                                 _source.name,
@@ -861,10 +874,31 @@ class _CctvCardState extends State<CctvCard> {
                                                               ),
                                                         ),
                                                       ),
-                                                title: Text(
-                                                  e.memo.isEmpty
-                                                      ? '(메모 없음)'
-                                                      : e.memo,
+                                                title: Row(
+                                                  children: [
+                                                    Container(
+                                                      key: ValueKey(
+                                                        'record-color-${e.id}',
+                                                      ),
+                                                      width: 6,
+                                                      height: 6,
+                                                      margin:
+                                                          const EdgeInsets.only(
+                                                            right: 6,
+                                                          ),
+                                                      decoration: BoxDecoration(
+                                                        color: sourceColor,
+                                                        shape: BoxShape.circle,
+                                                      ),
+                                                    ),
+                                                    Expanded(
+                                                      child: Text(
+                                                        e.memo.isEmpty
+                                                            ? '(메모 없음)'
+                                                            : e.memo,
+                                                      ),
+                                                    ),
+                                                  ],
                                                 ),
                                                 subtitle: Column(
                                                   crossAxisAlignment:

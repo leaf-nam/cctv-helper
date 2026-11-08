@@ -197,7 +197,33 @@
 - **검증**: 마스크 포매터·검증 단위 테스트, `7777777`/`99:99:99` 및
   자동 구분자 위젯 테스트.
 
-## 14. 기능-코드 매핑표
+## 14. 1.1.1 UX 개선 (#42~#46)
+
+- **CCTV별 색상 일관 적용 (#43, 구현됨)**
+  - `SourcePalette`(사건 내 CCTV 순서) 색을 사건 상세 `CctvCard` 헤더와
+    카드 안 기록 목록에도 표시한다 (`cctv-color-*`, `record-color-*`).
+  - 사진 보관함·통합 타임라인과 같은 색을 쓰며, 색 외 이름·아이콘 정보는 유지한다.
+- **한 사진 다중 시각 후보 선택 (#42, 구현됨)**
+  - `TimestampParser.candidates()`가 한 글의 여러 시각을 각각 후보로 만든다
+    (같은 시각의 중복 형식은 신뢰도 높은 것만 유지).
+  - 기준 OCR 시트의 `한 장에 두 시각이 보이나요?` 모드에서 사진 한 장을 인식해
+    후보를 실제시간/CCTV 슬롯에 각각 지정한다.
+  - 슬롯별 인식도 후보가 2개 이상이면 `ChoiceChip`으로 선택한다.
+  - 같은 사진을 양쪽 슬롯에 써도 `PhotosProvider`에는 한 번만 저장한다.
+- **모달 하단 시스템 바 겹침 제거 (#44, 구현됨)**
+  - `lib/core/widgets/modal_sheet.dart`의 `modalBottomInset()`/
+    `modalSheetPadding()`이 `max(viewInsets.bottom, viewPadding.bottom)`을 반영한다.
+  - 기준 OCR·기록 추가·사진 추가·시각 편집·사진 상세 시트에 적용.
+- **메모 첨부 사진 OCR (#45, 구현됨)**
+  - 기록 시트에 이미 첨부한 사진이 있으면 `ImagePicker`를 다시 호출하지 않고
+    해당 경로로 OCR한다. 사진이 없을 때만 촬영/앨범 선택 시트를 띄운다.
+  - OCR 서비스·이미지 선택기를 주입 가능하게 해 위젯 테스트로 검증한다.
+- **사진 전체화면 뷰어 (#46, 구현됨)**
+  - 사진 타일 탭 → `showPhotoViewer()` 전체화면(`InteractiveViewer` 핀치 줌·팬).
+  - `정보` 버튼 → 기존 상세 시트(메모 수정·삭제), 닫기·시스템 뒤로가기 지원.
+  - 다운로드/공유는 저장 권한·플러그인 검토가 필요해 후속 과제로 분리.
+
+## 15. 기능-코드 매핑표
 
 | # | 기능 | 저장 키 | 모델 | Repository | 화면/Provider | 상태 |
 |---|------|--------|------|------------|---------------|------|
@@ -214,3 +240,8 @@
 | 11 | 사진 보관함 (#28) | `casePhotos` | `CasePhoto` | `CasePhotoRepository` | `PhotosScreen`, `PhotosProvider` | 구현됨 (1.1.0) |
 | 12 | 시각 표시 가독성 (#35) | — | — | — | `DateTimeText` | 구현됨 (1.1.0) |
 | 13 | 입력 범위 검증 (#36) | — | — | — | `validateDateInput`/`validateTimeInput` | 구현됨 (1.1.0) |
+| 14 | CCTV 색상 일관 적용 (#43) | — | — | — | `SourcePalette`, `CctvCard` | 구현됨 (1.1.1) |
+| 15 | 다중 시각 후보 선택 (#42) | — | `TimestampCandidate` | `TimestampParser.candidates` | `BaselineOcrSheet` | 구현됨 (1.1.1) |
+| 16 | 모달 하단 inset (#44) | — | — | — | `modalSheetPadding` | 구현됨 (1.1.1) |
+| 17 | 첨부 사진 OCR (#45) | — | — | `OcrService` | `event_sheet` | 구현됨 (1.1.1) |
+| 18 | 사진 전체화면 (#46) | — | `CasePhoto` | — | `photo_viewer`, `PhotosScreen` | 구현됨 (1.1.1) |
