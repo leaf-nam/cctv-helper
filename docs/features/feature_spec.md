@@ -132,8 +132,9 @@
 - **요구**: 실제시간 화면/CCTV LIVE 화면/녹화장면 사진에서 시각을 인식한다.
 - **구현 상태**: 구현됨 (온디바이스 ML Kit, 모바일 전용).
 - **동작**:
-  - A. 기준 촬영: CCTV 카드 `사진으로 입력` → 실제시간·CCTV 사진 2장을 각각 OCR →
-    후보 시각 표시 → 사용자 확인·수정 → `적용` 시 오프셋 저장 + 기준 사진 보관.
+  - A. 기준 촬영: CCTV 카드 `사진으로 입력` → CCTV 화면과 실제 시계가 함께 찍힌
+    사진 **한 장**을 OCR → 여러 시각 후보 중 사용자가 실제시간/CCTV 시각을 지정 →
+    확인·수정 → `적용` 시 오프셋 저장 + 기준 사진 보관.
   - B. 녹화장면: 기록 시트/사진 추가 시트의 `사진에서 시각 인식` → CCTV 시각 후보 →
     저장된 오프셋으로 보정 실제시간 산출. 자동 확정하지 않는다.
   - 인식 실패·권한 거부·저화질: 수동 입력 fallback과 안내 문구.
@@ -199,16 +200,20 @@
 
 ## 14. 1.1.1 UX 개선 (#42~#46)
 
-- **CCTV별 색상 일관 적용 (#43, 구현됨)**
-  - `SourcePalette`(사건 내 CCTV 순서) 색을 사건 상세 `CctvCard` 헤더와
-    카드 안 기록 목록에도 표시한다 (`cctv-color-*`, `record-color-*`).
-  - 사진 보관함·통합 타임라인과 같은 색을 쓰며, 색 외 이름·아이콘 정보는 유지한다.
-- **한 사진 다중 시각 후보 선택 (#42, 구현됨)**
+- **CCTV별 테마 색상 (#43, 구현됨)**
+  - `SourcePalette`가 같은 채도·명도에서 색상만 나눈 테마 색 **20개**를 제공한다.
+  - 사용자가 CCTV 카드의 색 점을 눌러 색을 선택하면 `CctvSource.colorIndex`에
+    저장되고, 사건 상세 카드·기록 목록·사진 보관함·통합 타임라인에 동일하게 적용된다.
+  - 선택한 색이 없으면 사건 내 CCTV 순서로 기본 색을 배정한다.
+  - 색 외 이름·아이콘 정보는 유지해 색만으로 구분하지 않도록 한다.
+- **한 사진에서 실제시간·CCTV 시각 지정 (#42, 구현됨)**
+  - 기준 OCR 시트의 사진 입력은 **한 곳뿐**이다. CCTV 화면과 실제 시계가 함께
+    찍힌 사진 한 장을 촬영/앨범에서 고른다.
   - `TimestampParser.candidates()`가 한 글의 여러 시각을 각각 후보로 만든다
     (같은 시각의 중복 형식은 신뢰도 높은 것만 유지).
-  - 기준 OCR 시트의 `한 장에 두 시각이 보이나요?` 모드에서 사진 한 장을 인식해
-    후보를 실제시간/CCTV 슬롯에 각각 지정한다.
-  - 슬롯별 인식도 후보가 2개 이상이면 `ChoiceChip`으로 선택한다.
+  - 인식 후 각 후보의 `실제시간`/`CCTV` 버튼으로 슬롯을 지정하고, 아래 슬롯
+    카드에서 지정된 시각을 확인하거나 `직접 입력`으로 수정한다.
+  - 같은 후보를 양쪽 슬롯에 동시에 지정하지 못하며, 필요하면 이전 시각과 교체한다.
   - 같은 사진을 양쪽 슬롯에 써도 `PhotosProvider`에는 한 번만 저장한다.
 - **모달 하단 시스템 바 겹침 제거 (#44, 구현됨)**
   - `lib/core/widgets/modal_sheet.dart`의 `modalBottomInset()`/
@@ -240,8 +245,8 @@
 | 11 | 사진 보관함 (#28) | `casePhotos` | `CasePhoto` | `CasePhotoRepository` | `PhotosScreen`, `PhotosProvider` | 구현됨 (1.1.0) |
 | 12 | 시각 표시 가독성 (#35) | — | — | — | `DateTimeText` | 구현됨 (1.1.0) |
 | 13 | 입력 범위 검증 (#36) | — | — | — | `validateDateInput`/`validateTimeInput` | 구현됨 (1.1.0) |
-| 14 | CCTV 색상 일관 적용 (#43) | — | — | — | `SourcePalette`, `CctvCard` | 구현됨 (1.1.1) |
-| 15 | 다중 시각 후보 선택 (#42) | — | `TimestampCandidate` | `TimestampParser.candidates` | `BaselineOcrSheet` | 구현됨 (1.1.1) |
+| 14 | CCTV별 테마 색상 (#43) | — | `CctvSource.colorIndex` | — | `SourcePalette`, `source_color_sheet`, `CctvCard` | 구현됨 (1.1.1) |
+| 15 | 한 사진 시각 지정 (#42) | — | `TimestampCandidate` | `TimestampParser.candidates` | `BaselineOcrSheet` | 구현됨 (1.1.1) |
 | 16 | 모달 하단 inset (#44) | — | — | — | `modalSheetPadding` | 구현됨 (1.1.1) |
 | 17 | 첨부 사진 OCR (#45) | — | — | `OcrService` | `event_sheet` | 구현됨 (1.1.1) |
 | 18 | 사진 전체화면 (#46) | — | `CasePhoto` | — | `photo_viewer`, `PhotosScreen` | 구현됨 (1.1.1) |

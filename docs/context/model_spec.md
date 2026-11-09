@@ -75,6 +75,7 @@ class StoreKeys {
 | `caseId` | `String` | 소속 사건 ID |
 | `name` | `String` | CCTV 이름 (변경 가능, #4) |
 | `sortOrder` | `int` | 사건 내 순서 (reorder, #4) |
+| `colorIndex` | `int?` | 사용자가 고른 테마 색상 인덱스 (0~19, #43). null이면 사건 내 순서로 기본 배정 |
 | `displayedAt` | `DateTime?` | CCTV 표시시각 (미입력 허용, #1) |
 | `actualAt` | `DateTime?` | 실제 현재시간 (미입력 허용, #1) |
 | `createdAt` | `DateTime` | 등록 시각 |
@@ -83,6 +84,10 @@ class StoreKeys {
   없으면 `null` → UI에 "미계산" 표시).
 - **`copyWith` 주의**: `displayedAt`/`actualAt`은 nullable 필드이므로
   `DateTime? Function()?` 래퍼로 감싸 null 할당과 미변경을 구분한다.
+  `colorIndex`도 nullable이므로 `int? Function()?` 래퍼를 쓴다.
+- **색상 (#43)**: `SourcePalette`가 같은 채도의 테마 색 20개를 제공하고,
+  목록 위치·사진 보관함·통합 타임라인이 `colorIndex`를 우선 사용한다.
+  저장 문서에 `colorIndex`가 없으면 사건 내 순서로 기본 색을 배정한다.
 
 ### 4.3 `TimelineEvent` — 타임라인 사건 기록 (1.0.0 확정, #3)
 

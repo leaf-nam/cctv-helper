@@ -24,10 +24,11 @@ class BaselineOcrResult {
   final DateTime displayedAt;
 }
 
-/// 실제시간 화면과 CCTV LIVE 화면 사진을 각각 인식해 기준 시각 2개를 채운다.
+/// 기준 시각 입력 시트 (#27 A, #42).
 ///
-/// 자동 확정하지 않는다. 사용자가 인식 결과를 확인·수정한 뒤 `적용`을 눌러야
-/// 오프셋이 저장된다.
+/// 사진은 **한 장만** 받는다. CCTV 화면과 실제 시계가 함께 찍힌 사진에서
+/// 시각 후보를 추출한 뒤, 사용자가 각 후보를 실제시간/CCTV 시각에 지정한다.
+/// 자동 확정하지 않고 `적용`을 눌러야 오프셋이 저장된다.
 Future<BaselineOcrResult?> showBaselineOcrSheet(
   BuildContext context, {
   required String caseId,
@@ -52,8 +53,6 @@ class _SlotState {
   String path = '';
   DateTime? time;
   String? info;
-  bool loading = false;
-  List<TimestampCandidate> candidates = const [];
 }
 
 class _BaselineOcrSheetBody extends StatefulWidget {
@@ -77,10 +76,10 @@ class _BaselineOcrSheetBodyState extends State<_BaselineOcrSheetBody> {
   final _actual = _SlotState();
   final _displayed = _SlotState();
 
-  /// 한 장의 사진에서 두 시각을 함께 인식할 때의 후보 (#42).
-  String _sharedPath = '';
-  List<TimestampCandidate> _sharedCandidates = const [];
-  bool _sharedLoading = false;
+  /// 한 장의 사진에서 추출한 시각 후보 (#42).
+  String _photoPath = '';
+  List<TimestampCandidate> _candidates = const [];
+  bool _recognizing = false;
   bool _applying = false;
 
   @override
@@ -90,81 +89,40 @@ class _BaselineOcrSheetBodyState extends State<_BaselineOcrSheetBody> {
     _displayed.time = widget.source.displayedAt;
   }
 
-  Future<void> _pick(ImageSource from, {required bool actual}) async {
-    final slot = actual ? _actual : _displayed;
+  Future<void> _pickPhoto(ImageSource from) async {
     try {
       final file = await widget.imagePicker.pickImage(source: from);
       if (file == null) return;
       if (!mounted) return;
       setState(() {
-        slot.path = file.path;
-        slot.info = null;
-        slot.candidates = const [];
-      });
-      await _recognize(file.path, actual: actual);
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => slot.info = '사진을 가져올 수 없습니다.');
-    }
-  }
-
-  Future<void> _recognize(String path, {required bool actual}) async {
-    final slot = actual ? _actual : _displayed;
-    setState(() => slot.loading = true);
-    final text = await widget.ocrService.recognizeText(path);
-    final fallback = actual
-        ? DateTime.now()
-        : (_displayed.time ?? widget.source.displayedAt ?? DateTime.now());
-    final candidates = text == null
-        ? const <TimestampCandidate>[]
-        : TimestampParser.candidates(text, fallbackDate: fallback);
-    if (!mounted) return;
-    setState(() {
-      slot.loading = false;
-      slot.candidates = candidates;
-      if (candidates.isEmpty) {
-        slot.info = '시각을 인식하지 못했습니다. 직접 입력하세요.';
-      } else {
-        slot.time = candidates.first.value;
-        slot.info = candidates.length > 1
-            ? '시각 ${candidates.length}개 인식 · 사용할 시각을 선택하세요.'
-            : '인식 ${candidates.first.confidenceLabel} · 확인 후 적용하세요.';
-      }
-    });
-  }
-
-  /// 한 장의 사진에서 두 슬롯에 넣을 시각을 고른다 (#42).
-  Future<void> _pickShared(ImageSource from) async {
-    try {
-      final file = await widget.imagePicker.pickImage(source: from);
-      if (file == null) return;
-      if (!mounted) return;
-      setState(() {
-        _sharedPath = file.path;
-        _sharedCandidates = const [];
-        _sharedLoading = true;
+        _photoPath = file.path;
+        _candidates = const [];
+        _recognizing = true;
       });
       final text = await widget.ocrService.recognizeText(file.path);
       final candidates = text == null
           ? const <TimestampCandidate>[]
-          : TimestampParser.candidates(text, fallbackDate: DateTime.now());
+          : TimestampParser.candidates(
+              text,
+              fallbackDate: widget.source.displayedAt ?? DateTime.now(),
+            );
       if (!mounted) return;
       setState(() {
-        _sharedLoading = false;
-        _sharedCandidates = candidates;
+        _recognizing = false;
+        _candidates = candidates;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _sharedLoading = false;
-        _sharedCandidates = const [];
+        _recognizing = false;
+        _candidates = const [];
       });
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('사진을 가져올 수 없습니다.')));
     }
   }
 
-  Future<void> _chooseSharedSource() async {
+  Future<void> _choosePhotoSource() async {
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
       builder: (sheetContext) => SafeArea(
@@ -186,10 +144,10 @@ class _BaselineOcrSheetBodyState extends State<_BaselineOcrSheetBody> {
       ),
     );
     if (source == null) return;
-    await _pickShared(source);
+    await _pickPhoto(source);
   }
 
-  void _assignShared(TimestampCandidate candidate, {required bool actual}) {
+  void _assign(TimestampCandidate candidate, {required bool actual}) {
     final slot = actual ? _actual : _displayed;
     final other = actual ? _displayed : _actual;
     setState(() {
@@ -202,8 +160,8 @@ class _BaselineOcrSheetBodyState extends State<_BaselineOcrSheetBody> {
             : '한 사진에서 선택한 시각으로 교체했습니다.';
       }
       slot.time = candidate.value;
-      slot.path = _sharedPath;
-      slot.info = actual ? '한 사진에서 실제시간으로 선택했습니다.' : '한 사진에서 CCTV 시각으로 선택했습니다.';
+      slot.path = _photoPath;
+      slot.info = actual ? '실제시간으로 지정했습니다.' : 'CCTV 시각으로 지정했습니다.';
     });
   }
 
@@ -281,6 +239,112 @@ class _BaselineOcrSheetBodyState extends State<_BaselineOcrSheetBody> {
         .pop(BaselineOcrResult(actualAt: actualAt, displayedAt: displayedAt));
   }
 
+  /// 사진에서 인식한 시각 후보를 실제시간/CCTV에 지정하는 영역 (#42).
+  Widget _candidateSection(ThemeData theme) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.photo_library_outlined,
+                size: 18,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  '사진 한 장으로 시각 인식',
+                  style: theme.textTheme.titleSmall,
+                ),
+              ),
+              if (_recognizing)
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'CCTV 화면과 실제 시계가 함께 찍힌 사진 한 장을 선택하세요. '
+            '인식된 시각을 실제시간/CCTV에 각각 지정합니다.',
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: 6),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              key: const ValueKey('baseline-shared-pick'),
+              icon: const Icon(Icons.add_photo_alternate, size: 18),
+              label: Text(_photoPath.isEmpty ? '사진 선택' : '다른 사진 선택'),
+              onPressed: _recognizing ? null : _choosePhotoSource,
+            ),
+          ),
+          if (_photoPath.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.file(
+                    File(PhotoStorageService.resolve(_photoPath)),
+                    width: 56,
+                    height: 56,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, _, __) => const SizedBox(
+                      width: 56,
+                      height: 56,
+                      child: Icon(Icons.broken_image),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _candidates.isEmpty
+                      ? Text(
+                          _recognizing
+                              ? '시각을 인식하는 중입니다...'
+                              : '시각을 인식하지 못했습니다. 아래에서 직접 입력하세요.',
+                          style: theme.textTheme.bodySmall,
+                        )
+                      : Column(
+                          children: [
+                            for (var i = 0; i < _candidates.length; i++)
+                              _CandidateRow(
+                                candidate: _candidates[i],
+                                index: i,
+                                assignedActual:
+                                    _actual.time == _candidates[i].value,
+                                assignedDisplayed:
+                                    _displayed.time == _candidates[i].value,
+                                onAssignActual: () =>
+                                    _assign(_candidates[i], actual: true),
+                                onAssignDisplayed: () =>
+                                    _assign(_candidates[i], actual: false),
+                              ),
+                          ],
+                        ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// 지정된 시각을 확인하고 직접 수정하는 슬롯 카드.
   Widget _slot({
     required bool actual,
     required String label,
@@ -305,70 +369,18 @@ class _BaselineOcrSheetBodyState extends State<_BaselineOcrSheetBody> {
               Icon(icon, size: 18, color: theme.colorScheme.primary),
               const SizedBox(width: 6),
               Expanded(child: Text(label, style: theme.textTheme.titleSmall)),
-              if (slot.loading)
-                const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (slot.path.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.file(
-                      File(PhotoStorageService.resolve(slot.path)),
-                      width: 64,
-                      height: 64,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, _, __) => const SizedBox(
-                        width: 64,
-                        height: 64,
-                        child: Icon(Icons.broken_image),
-                      ),
-                    ),
-                  ),
-                ),
-              Expanded(
-                child: DateTimeText(
-                  value: slot.time,
-                  label: '인식/입력 시각',
-                  timeKey: ValueKey('$keyPrefix-time'),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 6,
-            runSpacing: 4,
-            children: [
-              OutlinedButton.icon(
-                icon: const Icon(Icons.photo_camera, size: 18),
-                label: const Text('촬영'),
-                onPressed: slot.loading
-                    ? null
-                    : () => _pick(ImageSource.camera, actual: actual),
-              ),
-              OutlinedButton.icon(
-                icon: const Icon(Icons.photo_library, size: 18),
-                label: const Text('앨범'),
-                onPressed: slot.loading
-                    ? null
-                    : () => _pick(ImageSource.gallery, actual: actual),
-              ),
               TextButton.icon(
                 icon: const Icon(Icons.edit_calendar, size: 18),
                 label: const Text('직접 입력'),
                 onPressed: () => _editTime(actual: actual),
               ),
             ],
+          ),
+          const SizedBox(height: 4),
+          DateTimeText(
+            value: slot.time,
+            label: '적용할 시각',
+            timeKey: ValueKey('$keyPrefix-time'),
           ),
           if (slot.info != null)
             Padding(
@@ -380,171 +392,6 @@ class _BaselineOcrSheetBodyState extends State<_BaselineOcrSheetBody> {
                 ),
               ),
             ),
-          if (slot.candidates.length > 1)
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: Wrap(
-                spacing: 6,
-                runSpacing: 4,
-                children: [
-                  for (var i = 0; i < slot.candidates.length; i++)
-                    ChoiceChip(
-                      key: ValueKey('$keyPrefix-candidate-$i'),
-                      label: Text(
-                        '${formatTime(slot.candidates[i].value)} '
-                        '${slot.candidates[i].confidenceLabel}',
-                      ),
-                      selected: slot.time == slot.candidates[i].value,
-                      onSelected: (_) => setState(() {
-                        slot.time = slot.candidates[i].value;
-                        slot.info = '인식 후보 중 선택했습니다.';
-                      }),
-                    ),
-                ],
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  /// 한 장의 사진에서 두 시각을 함께 고르는 영역 (#42).
-  Widget _sharedSection(ThemeData theme) {
-    final hasCandidates = _sharedCandidates.isNotEmpty;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.photo_library_outlined,
-                size: 18,
-                color: theme.colorScheme.primary,
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  '한 장에 두 시각이 보이나요?',
-                  style: theme.textTheme.titleSmall,
-                ),
-              ),
-              if (_sharedLoading)
-                const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'CCTV 화면과 실제 시계가 함께 찍힌 사진 한 장이면 충분합니다. '
-            '인식된 시각을 실제시간/CCTV에 각각 지정하세요.',
-            style: theme.textTheme.bodySmall,
-          ),
-          const SizedBox(height: 6),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: OutlinedButton.icon(
-              key: const ValueKey('baseline-shared-pick'),
-              icon: const Icon(Icons.add_photo_alternate, size: 18),
-              label: Text(_sharedPath.isEmpty ? '사진 한 장 선택' : '다른 사진 선택'),
-              onPressed: _sharedLoading ? null : _chooseSharedSource,
-            ),
-          ),
-          if (_sharedPath.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.file(
-                    File(PhotoStorageService.resolve(_sharedPath)),
-                    width: 56,
-                    height: 56,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, _, __) => const SizedBox(
-                      width: 56,
-                      height: 56,
-                      child: Icon(Icons.broken_image),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: !hasCandidates
-                      ? Text(
-                          _sharedLoading
-                              ? '시각을 인식하는 중입니다...'
-                              : '시각을 인식하지 못했습니다. 직접 입력하세요.',
-                          style: theme.textTheme.bodySmall,
-                        )
-                      : Column(
-                          children: [
-                            for (var i = 0; i < _sharedCandidates.length; i++)
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      '${formatTime(_sharedCandidates[i].value)} '
-                                      '· ${_sharedCandidates[i].confidenceLabel}',
-                                      style: theme.textTheme.bodyMedium,
-                                    ),
-                                  ),
-                                  TextButton(
-                                    key: ValueKey('baseline-shared-actual-$i'),
-                                    style: TextButton.styleFrom(
-                                      minimumSize: const Size(0, 36),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                      ),
-                                    ),
-                                    onPressed: () => _assignShared(
-                                      _sharedCandidates[i],
-                                      actual: true,
-                                    ),
-                                    child: Text(
-                                      _actual.time == _sharedCandidates[i].value
-                                          ? '실제 ✓'
-                                          : '실제',
-                                    ),
-                                  ),
-                                  TextButton(
-                                    key: ValueKey('baseline-shared-cctv-$i'),
-                                    style: TextButton.styleFrom(
-                                      minimumSize: const Size(0, 36),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                      ),
-                                    ),
-                                    onPressed: () => _assignShared(
-                                      _sharedCandidates[i],
-                                      actual: false,
-                                    ),
-                                    child: Text(
-                                      _displayed.time ==
-                                              _sharedCandidates[i].value
-                                          ? 'CCTV ✓'
-                                          : 'CCTV',
-                                    ),
-                                  ),
-                                ],
-                              ),
-                          ],
-                        ),
-                ),
-              ],
-            ),
-          ],
         ],
       ),
     );
@@ -563,23 +410,23 @@ class _BaselineOcrSheetBodyState extends State<_BaselineOcrSheetBody> {
             Text('사진으로 기준 입력', style: theme.textTheme.titleMedium),
             const SizedBox(height: 4),
             Text(
-              '실제시간이 보이는 화면과 CCTV LIVE 화면을 각각 촬영하세요. '
-              '한 화면에 두 시각이 함께 보이면 아래 한 장 모드를 사용하세요.',
+              '사진 한 장을 인식한 뒤, 실제시간과 CCTV 시각에 쓸 시각을 순서대로 '
+              '지정하세요. 인식 결과는 적용 전에 수정할 수 있습니다.',
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 10),
-            _sharedSection(theme),
+            _candidateSection(theme),
             const SizedBox(height: 10),
             _slot(
               actual: true,
-              label: '실제시간 화면',
+              label: '실제시간',
               icon: Icons.access_time,
               keyPrefix: 'baseline-actual',
             ),
             const SizedBox(height: 10),
             _slot(
               actual: false,
-              label: 'CCTV 화면',
+              label: 'CCTV 시각',
               icon: Icons.videocam,
               keyPrefix: 'baseline-cctv',
             ),
@@ -613,6 +460,58 @@ class _BaselineOcrSheetBodyState extends State<_BaselineOcrSheetBody> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// OCR 후보 1개와 실제시간/CCTV 지정 버튼.
+class _CandidateRow extends StatelessWidget {
+  final TimestampCandidate candidate;
+  final int index;
+  final bool assignedActual;
+  final bool assignedDisplayed;
+  final VoidCallback onAssignActual;
+  final VoidCallback onAssignDisplayed;
+
+  const _CandidateRow({
+    required this.candidate,
+    required this.index,
+    required this.assignedActual,
+    required this.assignedDisplayed,
+    required this.onAssignActual,
+    required this.onAssignDisplayed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            '${formatTime(candidate.value)} · ${candidate.confidenceLabel}',
+            style: theme.textTheme.bodyMedium,
+          ),
+        ),
+        TextButton(
+          key: ValueKey('baseline-shared-actual-$index'),
+          style: TextButton.styleFrom(
+            minimumSize: const Size(0, 36),
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+          ),
+          onPressed: onAssignActual,
+          child: Text(assignedActual ? '실제시간 ✓' : '실제시간'),
+        ),
+        TextButton(
+          key: ValueKey('baseline-shared-cctv-$index'),
+          style: TextButton.styleFrom(
+            minimumSize: const Size(0, 36),
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+          ),
+          onPressed: onAssignDisplayed,
+          child: Text(assignedDisplayed ? 'CCTV ✓' : 'CCTV'),
+        ),
+      ],
     );
   }
 }

@@ -8,7 +8,12 @@ class CctvSource {
   final String id;
   final String caseId;
   final String name;
+
+  /// 사건 내 순서 (reorder, #4)
   final int sortOrder;
+
+  /// 사용자가 고른 테마 색상 인덱스 (#43). null이면 목록 순서로 기본 배정.
+  final int? colorIndex;
 
   /// CCTV 영상에 표시된 시각 (미입력 허용).
   final DateTime? displayedAt;
@@ -22,6 +27,7 @@ class CctvSource {
     required this.caseId,
     required this.name,
     this.sortOrder = 0,
+    this.colorIndex,
     this.displayedAt,
     this.actualAt,
     required this.createdAt,
@@ -31,6 +37,7 @@ class CctvSource {
     required String caseId,
     required String name,
     int sortOrder = 0,
+    int? colorIndex,
   }) {
     final now = DateTime.now();
     return CctvSource(
@@ -38,6 +45,7 @@ class CctvSource {
       caseId: caseId,
       name: name,
       sortOrder: sortOrder,
+      colorIndex: colorIndex,
       createdAt: now,
     );
   }
@@ -72,6 +80,7 @@ class CctvSource {
       caseId: (map['caseId'] ?? '') as String,
       name: (map['name'] ?? '') as String,
       sortOrder: (map['sortOrder'] ?? 0) as int,
+      colorIndex: (map['colorIndex'] as num?)?.toInt(),
       displayedAt: _parseDate(map['displayedAt']),
       actualAt: _parseDate(map['actualAt']),
       createdAt:
@@ -86,6 +95,7 @@ class CctvSource {
       'caseId': caseId,
       'name': name,
       'sortOrder': sortOrder,
+      'colorIndex': colorIndex,
       'displayedAt': displayedAt?.toUtc().toIso8601String(),
       'actualAt': actualAt?.toUtc().toIso8601String(),
       'createdAt': createdAt.toUtc().toIso8601String(),
@@ -95,6 +105,7 @@ class CctvSource {
   CctvSource copyWith({
     String? name,
     int? sortOrder,
+    int? Function()? colorIndex,
     DateTime? Function()? displayedAt,
     DateTime? Function()? actualAt,
   }) {
@@ -103,6 +114,7 @@ class CctvSource {
       caseId: caseId,
       name: name ?? this.name,
       sortOrder: sortOrder ?? this.sortOrder,
+      colorIndex: colorIndex != null ? colorIndex() : this.colorIndex,
       displayedAt: displayedAt != null ? displayedAt() : this.displayedAt,
       actualAt: actualAt != null ? actualAt() : this.actualAt,
       createdAt: createdAt,

@@ -98,6 +98,11 @@ void main() {
     final picker = _FakePicker('shared.jpg');
     final setup = await pumpSheet(tester, ocr: ocr, picker: picker);
 
+    // 사진 입력은 한 곳뿐이다 (슬롯별 촬영/앨범 버튼 없음).
+    expect(find.byKey(const ValueKey('baseline-shared-pick')), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, '촬영'), findsNothing);
+    expect(find.widgetWithText(OutlinedButton, '앨범'), findsNothing);
+
     await pickSharedPhoto(tester);
 
     expect(picker.calls, 1);

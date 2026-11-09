@@ -90,7 +90,10 @@ class _PhotosScreenState extends State<PhotosScreen> {
                             FilterChip(
                               key: ValueKey('photo-filter-${sources[i].id}'),
                               avatar: CircleAvatar(
-                                backgroundColor: SourcePalette.of(i),
+                                backgroundColor: SourcePalette.ofSource(
+                                  sources[i],
+                                  i,
+                                ),
                                 radius: 7,
                               ),
                               label: Text(sources[i].name),

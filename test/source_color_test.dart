@@ -17,6 +17,22 @@ void main() {
     // 순수 팔레트 규칙 확인 (사건 상세·사진 보관함·타임라인이 공유).
     expect(SourcePalette.forSource(sources, first.id), SourcePalette.of(0));
     expect(SourcePalette.forSource(sources, second.id), SourcePalette.of(1));
+
+    // 사용자가 고른 색이 있으면 순서보다 우선한다.
+    final picked = [
+      first.copyWith(colorIndex: () => 7),
+      second.copyWith(colorIndex: () => 12),
+    ];
+    expect(SourcePalette.forSource(picked, first.id), SourcePalette.of(7));
+    expect(SourcePalette.forSource(picked, second.id), SourcePalette.of(12));
+  });
+
+  test('테마 색상은 같은 채도의 20가지 색이다', () {
+    expect(SourcePalette.colors, hasLength(20));
+    for (final color in SourcePalette.colors) {
+      expect(HSLColor.fromColor(color).saturation, closeTo(0.62, 0.02));
+    }
+    expect(SourcePalette.colors.toSet(), hasLength(20));
   });
 
   testWidgets('CCTV 카드와 기록 목록에 같은 CCTV 색을 표시', (tester) async {
@@ -61,5 +77,19 @@ void main() {
 
     // 카드가 기본으로 펼쳐져 기록 목록까지 보인다.
     expect(dotColor(ValueKey('record-color-${event.id}')), SourcePalette.of(0));
+
+    // 색 점을 눌러 테마 색을 바꾸면 카드·기록 색이 함께 바뀐다.
+    await tester.tap(find.byKey(ValueKey('cctv-color-button-${source.id}')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('source-color-sheet')), findsOneWidget);
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('source-color-option-7')),
+    );
+    await tester.tap(find.byKey(const ValueKey('source-color-option-7')));
+    await tester.pumpAndSettle();
+
+    expect(sources.byCase(caseId).first.colorIndex, 7);
+    expect(dotColor(ValueKey('cctv-color-${source.id}')), SourcePalette.of(7));
+    expect(dotColor(ValueKey('record-color-${event.id}')), SourcePalette.of(7));
   });
 }

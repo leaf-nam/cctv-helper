@@ -13,6 +13,7 @@ import '../../events/providers/events_provider.dart';
 import '../../ocr/presentation/baseline_ocr_sheet.dart';
 import '../../sources/domain/cctv_source.dart';
 import 'event_sheet.dart';
+import 'source_color_sheet.dart';
 
 /// 행 내 날짜/시간 직접 입력칸.
 ///
@@ -187,6 +188,7 @@ class CctvCard extends StatefulWidget {
   /// 목록 내 위치 (드래그 핸들용).
   final int index;
   final Future<void> Function(String id, String name) onRename;
+  final Future<void> Function(String id, int colorIndex) onColorChanged;
   final Future<void> Function(String id) onRemove;
   final Future<void> Function(
     String id, {
@@ -201,6 +203,7 @@ class CctvCard extends StatefulWidget {
     required this.source,
     required this.index,
     required this.onRename,
+    required this.onColorChanged,
     required this.onRemove,
     required this.onUpdateTimes,
   });
@@ -359,6 +362,16 @@ class _CctvCardState extends State<CctvCard> {
   /// 날짜/시간을 두 줄로 표시한다. 시간은 초까지 고정폭 숫자로 보여 준다.
   Widget _twoLineDisplay(DateTime? value) {
     return DateTimeText(value: value);
+  }
+
+  Future<void> _pickColor(BuildContext context) async {
+    final picked = await showSourceColorSheet(
+      context,
+      sourceName: _source.name,
+      selectedIndex: _source.colorIndex ?? widget.index,
+    );
+    if (picked == null || !mounted) return;
+    await widget.onColorChanged(_source.id, picked);
   }
 
   Future<void> _rename(BuildContext context) async {
@@ -565,7 +578,8 @@ class _CctvCardState extends State<CctvCard> {
   Widget build(BuildContext context) {
     final offset = _source.offsetMillis;
     // 사건 내 CCTV 순서 기준 색. 사진 보관함·타임라인과 동일한 색을 쓴다.
-    final sourceColor = SourcePalette.of(widget.index);
+    final sourceColorIndex = _source.colorIndex ?? widget.index;
+    final sourceColor = SourcePalette.of(sourceColorIndex);
     // 기준 시각 2개가 모두 입력돼 오프셋이 확정될 때만 하단 기능 공개.
     final ready = offset != null;
     // 기록 추가 시 쓸 시각: 시간 확인칸의 조회 시간 우선, 없으면 기준 CCTV 시각.
@@ -590,6 +604,30 @@ class _CctvCardState extends State<CctvCard> {
             ),
             Row(
               children: [
+                Tooltip(
+                  message: '색상 선택',
+                  child: InkWell(
+                    key: ValueKey('cctv-color-button-${_source.id}'),
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: () => _pickColor(context),
+                    child: SizedBox(
+                      width: 36,
+                      height: 36,
+                      child: Center(
+                        child: Container(
+                          key: ValueKey('cctv-color-${_source.id}'),
+                          width: 16,
+                          height: 16,
+                          decoration: BoxDecoration(
+                            color: sourceColor,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
                 Expanded(
                   child: Semantics(
                     button: true,
@@ -602,16 +640,6 @@ class _CctvCardState extends State<CctvCard> {
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         child: Row(
                           children: [
-                            Container(
-                              key: ValueKey('cctv-color-${_source.id}'),
-                              width: 10,
-                              height: 10,
-                              margin: const EdgeInsets.only(right: 8),
-                              decoration: BoxDecoration(
-                                color: sourceColor,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
                             Expanded(
                               child: Text(
                                 _source.name,
