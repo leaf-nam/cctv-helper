@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/services/photo_storage_service.dart';
 import '../../../core/services/time_calc_service.dart';
+import '../../../core/widgets/modal_sheet.dart';
 import '../../../core/widgets/time_edit_sheet.dart';
 import '../../../core/widgets/time_text.dart';
 import '../../ocr/data/ocr_service.dart';
@@ -217,12 +218,7 @@ class _AddPhotoSheetBodyState extends State<_AddPhotoSheetBody> {
         : null;
     return SingleChildScrollView(
       child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          16,
-          16,
-          16,
-          MediaQuery.of(context).viewInsets.bottom + 16,
-        ),
+        padding: modalSheetPadding(context),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -122,6 +122,9 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
                     index: index,
                     onRename: (id, name) =>
                         context.read<SourcesProvider>().renameSource(id, name),
+                    onColorChanged: (id, colorIndex) => context
+                        .read<SourcesProvider>()
+                        .updateColor(id, colorIndex),
                     onRemove: _removeSource,
                     onUpdateTimes:
                         (

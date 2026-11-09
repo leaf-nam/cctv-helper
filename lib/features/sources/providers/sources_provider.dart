@@ -71,6 +71,15 @@ class SourcesProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// CCTV 테마 색상 선택 (#43).
+  Future<void> updateColor(String id, int colorIndex) async {
+    final found = _repo.getById(id);
+    if (found == null) return;
+    await _repo.update(found.copyWith(colorIndex: () => colorIndex));
+    await _persist();
+    notifyListeners();
+  }
+
   /// CCTV 표시시각·실제시각 입력 (#1). 오프셋은 getter로 자동 계산 (#2).
   Future<void> updateTimes(
     String id, {

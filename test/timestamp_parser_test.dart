@@ -66,6 +66,18 @@ void main() {
       expect(list.first.confidence, greaterThanOrEqualTo(list[1].confidence));
     });
 
+    test('한 글에 시각이 여러 개면 각각 후보로 만든다', () {
+      final list = TimestampParser.candidates(
+        'CCTV 2026-10-22 14:03:22\n실제 시계 2026-10-22 14:05:10',
+        fallbackDate: DateTime(2026, 11, 9),
+      );
+      final values = list.map((e) => e.value).toSet();
+      expect(values, contains(DateTime(2026, 10, 22, 14, 3, 22)));
+      expect(values, contains(DateTime(2026, 10, 22, 14, 5, 10)));
+      // 같은 시각이 형식만 다르게 중복되지 않는다.
+      expect(values.length, list.length);
+    });
+
     group('영어 월 이름', () {
       test('메뉴바 캡처: Fri Oct 30 9:11PM', () {
         final result = TimestampParser.parse(
