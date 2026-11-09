@@ -86,6 +86,7 @@ void main() {
     await tester.tap(find.text('입구 기록'));
     await tester.pumpAndSettle();
     expect(find.text('오프셋'), findsOneWidget);
-    expect(find.textContaining('+2분'), findsWidgets);
+    expect(find.text('+0일 0시 2분 0초'), findsOneWidget);
+    expect(find.textContaining('ms'), findsNothing);
   });
 }

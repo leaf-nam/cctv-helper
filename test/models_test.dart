@@ -33,17 +33,21 @@ void main() {
       final source = CctvSource.create(caseId: 'c1', name: '입구').copyWith(
         displayedAt: () => DateTime(2026, 10, 8, 14, 0, 0),
         actualAt: () => DateTime(2026, 10, 8, 14, 2, 0),
+        colorIndex: () => 9,
       );
       expect(source.offsetMillis, 120000);
+      expect(source.colorIndex, 9);
     });
 
     test('fromMap/toMap 라운드트립', () {
       final original = CctvSource.create(caseId: 'c1', name: '입구').copyWith(
         displayedAt: () => DateTime(2026, 10, 8, 14, 0, 0),
         actualAt: () => DateTime(2026, 10, 8, 14, 2, 0),
+        colorIndex: () => 9,
       );
       final restored = CctvSource.fromMap(original.toMap());
       expect(restored.name, '입구');
+      expect(restored.colorIndex, 9);
       expect(restored.offsetMillis, 120000);
       expect(restored.displayedAt!.isUtc, isFalse);
       expect(restored.actualAt!.isUtc, isFalse);

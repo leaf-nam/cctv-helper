@@ -1,7 +1,9 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+
+import 'modal_sheet.dart';
+
 import 'package:flutter/services.dart';
 
 import 'datetime_field.dart';
@@ -246,16 +248,10 @@ class _TimeEditSheetBodyState extends State<_TimeEditSheetBody> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final theme = Theme.of(context);
     return SingleChildScrollView(
       child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          16,
-          12,
-          16,
-          math.max(16.0, bottomInset + 16),
-        ),
+        padding: modalSheetPadding(context, top: 12),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,

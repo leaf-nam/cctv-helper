@@ -32,7 +32,7 @@ void main() {
         CasePhoto.create(
           caseId: caseId,
           sourceId: source.id,
-          filePath: '',
+          filePath: 'sample.jpg',
           kind: CasePhotoKind.scene,
           displayedAt: DateTime(2026, 10, 22, 15),
           offsetMillis: 120000,
@@ -64,10 +64,28 @@ void main() {
     expect(find.text('2026-10-22 15:02:00'), findsOneWidget);
   });
 
-  testWidgets('사진 상세에서 메모 수정·삭제 진입점 제공', (tester) async {
+  testWidgets('사진 탭 시 전체화면 뷰어가 열리고 닫힌다', (tester) async {
+    await pump(tester);
+    await tester.tap(find.byType(InkWell).first);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('photo-viewer')), findsOneWidget);
+    expect(find.byKey(const ValueKey('photo-viewer-zoom')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('photo-viewer-close')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('photo-viewer')), findsNothing);
+    expect(find.text('사진 보관함'), findsOneWidget);
+  });
+
+  testWidgets('전체화면에서 상세 정보로 메모 수정·삭제 진입', (tester) async {
     final setup = await pump(tester);
     await tester.tap(find.byType(InkWell).first);
     await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('photo-viewer')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('photo-viewer-info')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('photo-viewer')), findsNothing);
     expect(find.text('보정 실제시간'), findsOneWidget);
     expect(find.text('메모 수정'), findsOneWidget);
     expect(find.text('현장 사진'), findsOneWidget);

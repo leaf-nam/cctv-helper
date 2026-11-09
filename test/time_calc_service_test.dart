@@ -67,5 +67,13 @@ void main() {
       expect(TimeCalcService.formatOffsetShort(3600000), '+1시간');
       expect(TimeCalcService.formatOffsetShort(86400000), '+1일');
     });
+
+    test('formatOffsetFull 일·시·분·초 상세 표기', () {
+      expect(TimeCalcService.formatOffsetFull(0), '0일 0시 0분 0초');
+      expect(TimeCalcService.formatOffsetFull(120000), '+0일 0시 2분 0초');
+      expect(TimeCalcService.formatOffsetFull(-10000), '−0일 0시 0분 10초');
+      expect(TimeCalcService.formatOffsetFull(90061000), '+1일 1시 1분 1초');
+      expect(TimeCalcService.formatOffsetFull(500), '+0일 0시 0분 0초');
+    });
   });
 }
