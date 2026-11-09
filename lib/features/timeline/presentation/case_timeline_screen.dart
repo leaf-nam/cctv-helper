@@ -509,8 +509,7 @@ class _EntryDetailSheet extends StatelessWidget {
               _DetailRow(
                 label: '오프셋',
                 child: Text(
-                  '${TimeCalcService.formatOffsetShort(entry.offsetMillis!)} '
-                  '(${entry.offsetMillis}ms)',
+                  TimeCalcService.formatOffsetFull(entry.offsetMillis!),
                   style: theme.textTheme.bodyMedium,
                 ),
               ),

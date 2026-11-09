@@ -40,7 +40,9 @@
 - **구현 상태**: 구현됨.
 - **관련 코드**:
   - 서비스: `TimeCalcService` (`lib/core/services/time_calc_service.dart`).
-  - 표시: `CctvCard`의 오차 문장 (`formatOffset` — `CCTV가 2분 느림 (+120000ms)` 형태).
+  - 표시: `CctvCard`의 오차 문장 (`formatOffset` — `CCTV가 2분 0초 느림` 형태).
+  - 상세 화면(통합 타임라인·사진 상세)의 오프셋은 `formatOffsetFull`로
+    `+0일 0시 2분 0초`처럼 일·시·분·초로 표기한다 (ms 원값 노출 없음).
 - **향후 과제**: 초 단위 이하(ms) 입력 UI.
 
 ## 3. CCTV 이벤트 입력 (#3, 1.0.0 구현됨)

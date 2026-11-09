@@ -519,8 +519,7 @@ class _PhotoDetailSheetState extends State<_PhotoDetailSheet> {
               _MetaRow(
                 label: '오프셋',
                 child: Text(
-                  '${TimeCalcService.formatOffsetShort(_photo.offsetMillis!)} '
-                  '(${_photo.offsetMillis}ms)',
+                  TimeCalcService.formatOffsetFull(_photo.offsetMillis!),
                   style: theme.textTheme.bodyMedium,
                 ),
               ),

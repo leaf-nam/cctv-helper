@@ -58,6 +58,21 @@ class TimeCalcService {
     return '$sign$s초';
   }
 
+  /// 오프셋을 `0일 0시 0분 0초` 형태로 표기 (초 단위까지, 내림).
+  /// 예: `+0일 0시 2분 0초`, `−0일 0시 0분 10초`, `0일 0시 0분 0초`.
+  ///
+  /// 상세 화면에서 ms 원값 대신 사용한다.
+  static String formatOffsetFull(int millis) {
+    if (millis == 0) return '0일 0시 0분 0초';
+    final sign = millis > 0 ? '+' : '−';
+    final totalSeconds = millis.abs() ~/ 1000;
+    final d = totalSeconds ~/ 86400;
+    final h = (totalSeconds % 86400) ~/ 3600;
+    final m = (totalSeconds % 3600) ~/ 60;
+    final s = totalSeconds % 60;
+    return '$sign$d일 $h시 $m분 $s초';
+  }
+
   /// 오프셋 ms를 사람이 읽기 쉬운 문장으로 포맷 (초 단위까지, 내림).
   /// 예: `CCTV가 2분 0초 느림`, `CCTV가 1분 30초 빠름`, `CCTV가 0초 느림`.
   ///
